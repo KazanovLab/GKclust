@@ -1,4 +1,4 @@
-![Logo](docs/sbsclust_logo.jpg)
+<img src="docs/sbsclust_logo.png" alt="logo" title="Secondary structure" align="right" height="250" style="float: right: margin-left: 15px;" />
 
 # SBSClust
 
