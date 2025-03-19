@@ -1,3 +1,5 @@
+<img src="docs/sbsclust_small.png" alt="logo" title="Secondary structure" align="right" height="250" />
+
 # SBSClust
 
 SBSClust is a computational tool designed to detect clusters of mutations in complete genomes. 
