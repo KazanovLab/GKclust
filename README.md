@@ -1,4 +1,4 @@
-<img src="docs/sbsclust_small.jpg" alt="logo" title="SBSClust logo" align="right" height="250" />
+<img src="docs/sbsclust_logo.jpg" alt="logo" title="SBSClust logo" align="right" height="250" />
 
 # SBSClust
 
