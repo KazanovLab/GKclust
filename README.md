@@ -1,4 +1,4 @@
-<img src="docs/sbsclust_logo.jpg" alt="logo" title="SBSClust logo" align="right" height="400" />
+![Logo](docs/sbsclust_logo.jpg)
 
 # SBSClust
 
