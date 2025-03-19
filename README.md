@@ -1,6 +1,6 @@
-<p align="right">
+<div style="display: flex; align-items: center;">
 <img src="docs/sbsclust_logo.jpg" alt="logo" title="Secondary structure" height="250" style="float: right; margin-left: 15px;">
-</p>
+</div>
 
 # SBSClust
 
