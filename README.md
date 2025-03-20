@@ -51,7 +51,7 @@ sbsclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 Please use the [GitHub issue tracker](https://github.com/KazanovLab/SBSClust/issues) to report bugs or suggest features.
 
 ## Citing
-Ponomarev GV, Kurtoğlu , Kazanov MD. SBSClust: "SBSClust: A Bioinformatics Tool for Detecting Spatially Clustered Mutations in Complete Genomes". *to be submitted*
+Ponomarev GV, Kurtoğlu B, Kazanov MD. SBSClust: "SBSClust: A Bioinformatics Tool for Detecting Spatially Clustered Mutations in Complete Genomes". *to be submitted*
 
 ## Funding
 This study was supported by the Scientific and Technological Research Council of Turkey (TUBITAK) under Grant Number 123E476. The authors thank TUBITAK for their support. 
