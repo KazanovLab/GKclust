@@ -41,3 +41,9 @@ Full format output:
 ```
 sbsclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
+
+Both short and full output:
+```
+sbsclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+```
+
