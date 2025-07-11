@@ -6,7 +6,7 @@
 #include "string"
 using namespace std;
 
-//#define DEBUG_TRACE_TSLD
+#define DEBUG_TRACE_TSLD
 
 struct PROGARGS {
     string HUGpath;
@@ -21,9 +21,9 @@ struct PROGARGS {
     FILE * foutRndMu;
     FILE * foutRndCl;
     
-    PROGARGS() { argTAG='\0'; strcpy (chPart,"1");      //PartOfMut = 1;
+    PROGARGS() { argTAG='\0'; strcpy (chPart,"0.01");      //PartOfMut = 1;
                 foutClust=NULL; foutMu_Clu=NULL; foutTrace=NULL; foutRndMu=NULL; foutRndCl=NULL; };
-    int openOutFiles ( int iSamp );
+    int openOutFiles ( const char *vcf_Fname );
 };
 
 #define PROG_ARG_ID "sfdgot"
@@ -41,7 +41,7 @@ struct PROGARGS {
 #define GET_ARG_D(_TAG)  (((_TAG & _ARG_D)==0) ? 0 : 1 )
 
 
-#define NO_HUMAN_XRO 24
+//#define NO_HUMAN_XRO 24
 #define NO_CANCER_ID 6
 
 #define SRAND_VALUE 199
@@ -54,7 +54,6 @@ void tst_loadMut();
 void print_MutSize();
 void print_N_zone( );
 void testXsize( );
-
 
 #endif
 

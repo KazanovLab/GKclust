@@ -28,17 +28,19 @@ struct MUSTAT
 
 struct MUTANT
 {
-		long nucPos;        // from 1
+		int nucPos;        // from 1
 		char nucREF;
-		char nucALT;
+		char nucALT[8];
         char APOtag;
+        float calcVAF[3];
         int iClust;
         int iAggrCL;
 
-    MUTANT() {nucPos=-1; nucREF='?'; nucALT='?'; APOtag=0; iClust = -1; iAggrCL = -1; }; //_cID2 = "NONE";
-    MUTANT(long P) {nucPos=P; };
-    MUTANT(long P, char R, char A, char APO)
-        {nucPos=P; nucREF=R; nucALT=A; APOtag=APO; iClust = -1; iAggrCL = -1; }; //_cID2 = "NONE"; 
+    MUTANT() {nucPos=-1; nucREF='?'; nucALT[0]='?'; APOtag=0; calcVAF[0]=-1;calcVAF[1]=-1;calcVAF[2]=-1;
+        iClust = -1; iAggrCL = -1; }; //_cID2 = "NONE";
+    MUTANT(int P) {nucPos=P; };
+    MUTANT(int P, char R, char *pA, char APO)
+        {nucPos=P; nucREF=R; strncpy(nucALT, pA, 8); APOtag=APO; iClust = -1; iAggrCL = -1; }; //_cID2 = "NONE";
 };
 bool lesser_MUT ( const MUTANT &x1, const MUTANT &x2 );
 
@@ -54,82 +56,71 @@ struct CLUSTER
     CLUSTER(int bP, int eP) { iBegMu=bP; iEndMu=eP; cLng=0; cID=0; };
 };
 
-//////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 
-class SAMPLE {
-public:
-    static long maxMUTsize;
-    string SampName;
-    vector < MUTANT > vMutAPO[NO_HUMAN_XRO];
-    int PorogMut[NO_HUMAN_XRO];   //ClustPorog
-    
-    vector < CLUSTER > vClust[NO_HUMAN_XRO];
-    vector < CLUSTER > vAggrC[NO_HUMAN_XRO];
-    int PorogClust[NO_HUMAN_XRO];
-    
-    SAMPLE(string S) { SampName=S; };
-    
-    void clearSampl( );
-    int calcMutPorog( int Xsiz ); //, float PartOfMut);
-    int calcClustPorog( int iXro); //, float PartOfMut);
-    void  findClusters( int iXro, int *clustID, int Porog );
-    void ClustConnector(  int iXro, int *clustID, int Porog  );
-    
-    void printCluMut( int clustOnly, FILE * fRezult );
-    void printCluTrace(  );
-};
-///////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////
+#define XRO_ID_SIZE 64
 
 class  XROSOMA {
 private:
 //		vector <HUGEN> :: iterator begSearch;
 public:
     static long maxXsize;
+    static long maxMUTsize;
+    static int  chrIDmode;
 	string XfName;
-	string Xref_NC;
-	int  chrNum;				// get from Xref_NC
+	string  XroID;
+//	int  chrNum;				// get from Xref_NC
 	string version;
 //
 //  ===== real body of XRO will be read from files =============================
     long Xsize;
     char *Xbody;
-    char *Xtag;   
+    char *Xtag;
+//
+// ======= SAMPLE part ======================
+    vector < MUTANT > vMutAPO;
+    int PorogMut;
+    
+    vector < CLUSTER > vClust;
+    vector < CLUSTER > vAggrC;
+    int PorogClust;
+    
+    void addDublRndMut( );
+    int calcMutPorog( );
+    void  findClusters( int *clustID );
+    void ClustConnector( int *clustID );
+    void addDublRndClust( );
+    int calcClustPorog( ); 
     
 // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-    
-/*  ===== Targets (TCx, xGA) for APOBEC mutations  =====================
-    long TCxMemSize;    // = sizeof (TCXtag)
-    char *TCXtag;       //contains tags from '*Xtag' with TCx_TAG
-                        //                      for current segment
-    long TCXsize;      // = real no Targets in *TCXtag  (<=TCxMemSize)
-*/
-
-// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-
 ///////////
-    XROSOMA() { chrNum=0; Xsize=0L; Xbody=NULL; };
-    XROSOMA(int cN) { chrNum=cN; Xsize=0L; Xbody=NULL; };
+    XROSOMA() { XroID="?"; Xsize=0L; Xbody=NULL; };
+    XROSOMA(char *xName) { XroID=xName; Xsize=0L; Xbody=NULL; };
     
 
-    int testValidDNK( int Pos, char chREF, char chALT );
+    int testValidDNK( int Pos, char chREF );
     int APOtest( long Pos, char chREF, char chALT );
     int CLtest_N( pair<long,int> Clust );
 
     int CLtest_Cross( pair<long,int> Clust, vector < pair<long,int> >::iterator Iter);
+    int testMutUnClust( );
+    int  getGapClust(MUTANT *pMUt, int next) ;  // +1 = next; -1 = prev
 };
 /////////////////////////////////////////////////////////
 
-//int LoadDNKset( const char *pFolder, const char *fSetName );
-
-
 int LoadHuGen( const char *fPath );
 int loadVCFMutation( const char *vcf_Fname );
+void clearSampl( );
+void memRezerv( );
+void printMutRezerv( );
 
+void printCluMut( int clustOnly, FILE * fRezult );
+void printCluTrace(  );
 ///////////////////////////////////////////////
 
-int findXroByID( int xID, int say=1 );
+int findXroByID( char *xID, int say=1 );
 int getNucID(const char Nuc);
-int selectXid ( char *buff );
+int selectXid ( char *buff );       // see it at 'mClust' prog
 
 #endif
