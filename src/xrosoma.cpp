@@ -10,34 +10,33 @@
 #include "cmain.h"
 #include "xrosoma.h"
 
-#ifdef DEBUG_TRACE_TSLD
-	extern FILE *tsld;
-#endif
-
 vector < XROSOMA > vecDNK;
 
 char complment[4][2] = { {'C','G'},  {'G','C'}, {'A','T'}, {'T','A'} };
 char NucID[5] = "CGAT";
 int  cmpInd[4] = { _G, _C, _T, _A };
 
+#ifdef DEBUG_TRACE_TSLD
+extern FILE *tsld;
+#endif
+
 ///////////////////////////////////////////////////////
 
-int selectXid ( char *buff )
+void xtrctXID( char *pBuff)
 {
-    int xID;
+    char xID[XRO_ID_SIZE];
+    char *pX = xID ;
+    char *pB = pBuff ;
     
-    if ( strstr(buff,">chr") != buff )
-        return 0;
+    pB++;   // >
+    while ( *pB && *pB==' ') pB++;
+    strncpy(xID, pB, XRO_ID_SIZE-1);
     
-    if ( *(buff+4) == 'X')
-        xID = 23;
-    else
-        if ( *(buff+4) == 'Y')
-            xID = 24;
-        else
-            xID = atoi((buff+4));
+    while ( *pX && *pX > ' ') pX++;
+    *pX = '\0';
+    strcpy(pBuff,  xID);
     
-    return xID;
+    return;
 }
 ///////////////////////////////////////////////////////
 
@@ -46,13 +45,13 @@ int LoadHuGen( const char *fPath )
     FILE *fHuGen=NULL;
     char fBuff[1024];
     char *pb;
-    int Xro_ID, n;
+//    int n;  //, Xro_ID,
     string sGen;
     
-    printf("\nLoad HuGen  from '%s'.....\n", fPath);
+    printf("\nLoading genome from '%s'.....\n", fPath);
     
     if ( ( fHuGen=fopen(fPath, "r"))==NULL )    {
-        printf("File '%s' : ERR_OPENop\n",fPath);
+        printf("Failed to open reference genome: '%s'\n",fPath);
         return -1;
     }
     int cntXro = 0;
@@ -60,12 +59,12 @@ int LoadHuGen( const char *fPath )
     while ( 1 )    {
         if( fgets(fBuff, sizeof(fBuff)-1, fHuGen) == NULL )
             break;
-        if ( fBuff[0] != '>' )    {
-            if ( (pb = strchr(fBuff, '\r')) )   //for Windows
+        if ( (pb = strchr(fBuff, '\r')) )   //for Windows
+            *pb = '\0';
+        else
+            if ( (pb = strchr(fBuff, '\n')) )
                 *pb = '\0';
-            else
-                if ( (pb = strchr(fBuff, '\n')) )
-                    *pb = '\0';
+        if ( fBuff[0] != '>' )    {
             pb = fBuff;
             while ( *pb )   {
                 *pb = toupper(*pb);
@@ -82,27 +81,46 @@ int LoadHuGen( const char *fPath )
                 pCurXro->maxXsize = pCurXro->Xsize;
             strcpy(pCurXro->Xbody, sGen.c_str() );
             cntXro++;
-            printf("X.%02d  ", pCurXro->chrNum);
+            printf("%s  ", pCurXro->XroID.c_str() );
         }
-        Xro_ID = selectXid ( fBuff );
-        if ( ! Xro_ID )
-            break;
-        if ( findXroByID(Xro_ID, 0) >= 0 )     // patch
-            break;
-        if ( (vecDNK.size() == 0) || ( vecDNK.back().chrNum < Xro_ID )  ) {
-            vecDNK.push_back(XROSOMA(Xro_ID));
-            n = (int)vecDNK.size() - 1;
-        } else {
-            for ( n=0; n<vecDNK.size(); n++ )
-                if ( vecDNK[n].chrNum > Xro_ID )
-                    break;
-            vecDNK.insert(vecDNK.begin()+n, XROSOMA(Xro_ID));
+        
+        xtrctXID( fBuff );
+        if ( findXroByID(fBuff, 0) >= 0 ) {
+            printf("Redefinition chroID=%s", fBuff );
+            fclose (fHuGen );
+            return -1;
         }
-        pCurXro = &vecDNK[n];
+        
+//        if ( (vecDNK.size() == 0) || ( vecDNK.back().chrNum < Xro_ID )  ) {
+//            n = (int)vecDNK.size() - 1;
+//        } else {
+//            for ( n=0; n<vecDNK.size(); n++ )
+//                if ( vecDNK[n].chrNum > Xro_ID )
+//                    break;
+//            vecDNK.insert(vecDNK.begin()+n, XROSOMA(Xro_ID));
+//        }
+        
+        vecDNK.push_back(XROSOMA(fBuff));
+        pCurXro = &vecDNK[vecDNK.size()-1];
         pCurXro->XfName.assign(fPath);
+        if ( pCurXro->chrIDmode < 0 )      // first
+            pCurXro->chrIDmode =  (strstr(fBuff, "chr") == fBuff) ? 1 : 0;
+
         sGen.clear();
     }
+//
+    pCurXro->Xsize = sGen.size() ;
+    pCurXro->Xbody =  new char[pCurXro->Xsize+1];//+3];
+    if ( pCurXro->Xsize > pCurXro->maxXsize )
+        pCurXro->maxXsize = pCurXro->Xsize;
+    strcpy(pCurXro->Xbody, sGen.c_str() );
+    cntXro++;
+    printf("%s  ", pCurXro->XroID.c_str() );
+//    pCurXro->xroSAMPL.
+    printf("\n=== Loaded %d chro\n", cntXro);
+    
     fclose (fHuGen );
+    
     return cntXro;
 }
 ////////////////////////////////////////////////////////////////////////////////////
@@ -119,8 +137,8 @@ int XROSOMA::APOtest( long Pos, char chREF, char chALT )
     int retC=0;
     
     if (  *pB != chREF ) {
-        printf( "\n !!! NUCLEO_mismatch:: CHR_%d[%ld]='%c';  MUTATION: '%c' > '%c'\n",
-               chrNum, Pos, *pB, chREF, chALT);
+        printf( "\n !!! NUCLEO_mismatch:: CHR_%s[%ld]='%c';  MUTATION: '%c' > '%c'\n",
+               XroID.c_str(), Pos, *pB, chREF, chALT);
         return 0;
     }
     
@@ -147,32 +165,92 @@ int XROSOMA::APOtest( long Pos, char chREF, char chALT )
 }
 ////////////////////////////////////////////////////////////////////////////
 
-int XROSOMA::testValidDNK( int Pos, char chREF, char chALT )
+int XROSOMA::testValidDNK( int Pos, char chREF ) 
 {
     //    char *pB = Xbody+Pos-1;
     
     if (  *(Xbody+Pos-1) != chREF ) {
-        printf( "\n !!! NUCLEO_mismatch:: CHR_%d[%d]='%c';  MUTATION: '%c' > '%c'\n",
-               chrNum,Pos,*(Xbody+Pos-1), chREF, chALT);
+        printf( "\nReference base mismatch at %s:%d. Reference genome has '%c', but VCF REF = '%c'.\n",
+               XroID.c_str(), Pos,*(Xbody+Pos-1), chREF);
         return 0;
     }
     return 1;
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
-int  findXroByID( int xID, int say )
-{
-    int indX;
-    
-    for ( indX=0; indX<vecDNK.size(); indX++ )
-        if ( vecDNK[indX].chrNum == xID )
+int findXro( char *xID )    {
+    for ( int indX=0; indX<vecDNK.size(); indX++ )  {
+        if ( vecDNK[indX].XroID == xID )
             return indX;
-    if (say)
-        printf("ERR: XroID=%d NOT FOUND\n", xID);
+    }
     return -1;
 }
- 
-////////////////////////////////////////////////////// //////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
+int  findXroByID( char *xID, int say )
+{
+    int indX;
+    int stat;
+    char my_xID[XRO_ID_SIZE];
+    
+    if  ( strstr(xID,"chr")==xID )
+        stat = ( vecDNK[0].chrIDmode ) ? 1 : 2;
+    else
+        stat = ( vecDNK[0].chrIDmode ) ? 3 : 4;
+//     vcf     genome
+// 1=(chrID) : (chrID)
+// 2=(chrID) : (   ID)
+// 3=(   ID) : (chrID)
+// 1=(   ID) : (   ID)
+    
+    strncpy(my_xID, xID, XRO_ID_SIZE-1);
+    switch (stat) {
+            
+        case 2:         // (chrID) : (   ID)
+            if ( (indX = findXro((xID+3)) ) >= 0 )    // (chrID->ID) : ( ID )
+                break;
+            
+            if ( strcmp(xID, "chrM")==0 )           // (chrM->MT) : ( ID )
+                strcpy(my_xID, "MT");
+            if ( (indX = findXro(my_xID)) >= 0 )
+                break;
+            
+            if ( (indX = findXro(xID)) >= 0 )      // (chrID) : ( ID )   for finding in patches
+                break;
+            
+            indX =-1;
+            break;
+            
+        case 3:         // (   ID) : (chrID)
+            strcpy(my_xID,"chr");
+            strcat(my_xID, xID);
+            if ( (indX = findXro(my_xID)) >= 0 )      // (ID->chrID) : (chrID)
+                break;
+            
+            if ( strcmp(xID, "MT")==0 )
+                strcpy(my_xID, "chrM");
+            if ( (indX = findXro(my_xID)) >= 0 )      // (MT->chrM) : ( chrID )
+                break;
+            
+            if ( (indX = findXro(xID)) >= 0 )      // (ID) : (chrID)   for finding in patches
+                break;
+            
+            indX =-1;
+            break;
+
+        default:        // case1:: (chrID) : (chrID)
+                        // case4:: (   ID) : (   ID)
+            indX = findXro(xID);
+            break;
+
+    }
+    
+    if (say && indX < 0 )
+        printf("ERR: XroID='%s' NOT FOUND\n", xID);
+    
+    return indX;
+}
+////////////////////////////////////////////////////////////////////////////////////
 
 int getNucID ( const char Nuc )
 {
@@ -200,7 +278,7 @@ void print_N_zone( )
     char *pBody;
     
 #ifdef DEBUG_TRACE_TSLD
-    for ( int nX=0; nX < NO_HUMAN_XRO; nX++)    {
+    for ( int nX=0; nX < vecDNK.size()-1; nX++)    {
         pBody = vecDNK[nX].Xbody;
         fprintf(tsld, "X.%d", nX );
         pBeg = vecDNK[nX].Xbody;
@@ -220,16 +298,6 @@ void print_N_zone( )
     }
 #endif
 }
-////////////////////////////////////////////////////////////////////////////////////
 
-void testXsize( )
-{
-#ifdef DEBUG_TRACE_TSLD
-    fprintf (tsld, "#X\tXsiz\tsLen\n");
-    for ( int nX=0; nX < NO_HUMAN_XRO; nX++)
-        fprintf (tsld, "%d\t%ld\t%ld\n", vecDNK[nX].chrNum, vecDNK[nX].Xsize, strlen(vecDNK[nX].Xbody) );
-#endif
-        return;
-}
 ////////////////////////////////////////////////////////////////////////////////////
  
