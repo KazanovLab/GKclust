@@ -8,7 +8,7 @@ GENAclust is a computational tool designed to detect clusters of mutations in co
 
 To install GENAclust from GitHub navigate to a directory where you want to install the program and clone the repository:
 ```
-git clone https://github.com/KazanovLab/SBSClust
+git clone https://github.com/KazanovLab/GENAclust
 ```
 
 To compile GENAclust and install it system-wide navigate into the cloned directory and run:
