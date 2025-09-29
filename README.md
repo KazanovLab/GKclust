@@ -1,26 +1,26 @@
 <img src="docs/sbsclust_logo.jpg" alt="logo" title="Secondary structure" height="400" align="right" />
 
-# SBSClust
+# GENAclust
 
-SBSClust is a computational tool designed to detect clusters of mutations in complete genomes. 
+GENAclust is a computational tool designed to detect clusters of mutations in complete genomes. 
 
 ## Installation
 
-To install SBSClust from GitHub navigate to a directory where you want to install the program and clone the repository:
+To install GENAclust from GitHub navigate to a directory where you want to install the program and clone the repository:
 ```
 git clone https://github.com/KazanovLab/SBSClust
 ```
 
-To compile SBSClust and install it system-wide navigate into the cloned directory and run:
+To compile GENAclust and install it system-wide navigate into the cloned directory and run:
 ```
-cd SBSClust
+cd GENAclust
 make
 sudo make install
 ```
 
 ## Quick start
 
-SBSClust can generate output in short, full, or both formats simultaneously.
+GENAclust can generate output in short, full, or both formats simultaneously.
 * The short output (-s option) includes only mutations that are part of the identified clusters.
 * The full output (-f option) contains all mutations from the input VCF files.
 
@@ -34,17 +34,17 @@ Examples:
 
 Short format output:
 ```
-sbsclust -s /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+genaclust -s /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 Full format output:
 ```
-sbsclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+genaclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 Both short and full output:
 ```
-sbsclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+genaclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 ## Reporting Bugs and Feature Requests
