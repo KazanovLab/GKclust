@@ -1,4 +1,4 @@
-<img src="docs/sbsclust_logo.jpg" alt="logo" title="Secondary structure" height="400" align="right" />
+<img src="docs/genaclust_logo.jpg" alt="logo" title="GENAclust logo" height="400" align="right" />
 
 # GENAclust
 
