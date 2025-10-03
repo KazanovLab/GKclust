@@ -20,12 +20,13 @@ sudo make install
 
 ## Quick start
 
-GENAclust can generate output in short, full, or both formats simultaneously.
+GENAclust can generate output in several formats simultaneously.
 * The short output (-s option) includes only mutations that are part of the identified clusters.
 * The full output (-f option) contains all mutations from the input VCF files.
+* The list of cluster (-m option) contains only list of clusters for particular VCF file.
 
 Other options include:
-* The input directory containing VCF file (specified after the -s/-f options)
+* The input directory containing VCF file (-i) or the list of full paths to VCF files (-l) in a separate text file.
 * The reference genome location (-g).
 * The output directory (-o).
 * The p-value for determining the between-mutation distance threshold (-t, default: 0.01).
@@ -34,7 +35,7 @@ Examples:
 
 Short format output:
 ```
-genaclust -s /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+genaclust -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 Full format output:
@@ -42,10 +43,6 @@ Full format output:
 genaclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
-Both short and full output:
-```
-genaclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
-```
 
 ## Reporting Bugs and Feature Requests
 Please use the [GitHub issue tracker](https://github.com/KazanovLab/SBSClust/issues) to report bugs or suggest features.
