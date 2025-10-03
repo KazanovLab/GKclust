@@ -5,12 +5,12 @@
 #include "vector"
 #include "string"
 using namespace std;
-
-#define _C 0
-#define _G 1
-#define _A 2
-#define _T 3
-
+/*
+#define _A 0
+#define _C 1
+#define _T 2
+#define _G 3
+*/
 //////////////////////////////////////////////////////////
 
 struct MUSTAT
@@ -26,21 +26,32 @@ struct MUSTAT
 };
 //////////////////////////////////////////////////////////
 
+#define MUT_SINGL  0x01
+#define MUT_INSERT 0x02
+#define MUT_DELETE 0x04
+
 struct MUTANT
 {
 		int nucPos;        // from 1
-		char nucREF;
-		char nucALT[8];
-        char APOtag;
+        unsigned char mutType;
+		string nucREF;
+		string nucALT;
         float calcVAF[3];
         int iClust;
         int iAggrCL;
 
-    MUTANT() {nucPos=-1; nucREF='?'; nucALT[0]='?'; APOtag=0; calcVAF[0]=-1;calcVAF[1]=-1;calcVAF[2]=-1;
-        iClust = -1; iAggrCL = -1; }; //_cID2 = "NONE";
+    MUTANT() {nucPos=-1; mutType=0; calcVAF[0]=-1;calcVAF[1]=-1;calcVAF[2]=-1; iClust = -1; iAggrCL = -1; };
     MUTANT(int P) {nucPos=P; };
-    MUTANT(int P, char R, char *pA, char APO)
-        {nucPos=P; nucREF=R; strncpy(nucALT, pA, 8); APOtag=APO; iClust = -1; iAggrCL = -1; }; //_cID2 = "NONE";
+    MUTANT(int P, char *pR, char *pA, int mT)
+        {nucPos=P; nucREF=pR; nucALT=pA; mutType=mT; calcVAF[0]=-1;calcVAF[1]=-1;calcVAF[2]=-1; iClust = -1; iAggrCL = -1; };
+    void setSingl( )    {mutType |= MUT_SINGL; };
+    void setIns ( )     {mutType |= MUT_INSERT; };
+    void setDel ( )     {mutType |= MUT_DELETE; };
+    bool isSingl() { return ( (mutType & MUT_SINGL) > 0); };
+    bool isIns() { return ( (mutType & MUT_INSERT) > 0); };
+    bool isDel() { return ( (mutType & MUT_DELETE) > 0); };
+    void identiMuType( );
+   
 };
 bool lesser_MUT ( const MUTANT &x1, const MUTANT &x2 );
 
@@ -52,8 +63,9 @@ struct CLUSTER
     int iEndMu;          // last index at vMutAPO
     int cLng;           //  Cluster Size
     int cID;
-    CLUSTER() { iBegMu=-1; iEndMu=-1; cLng=0; cID=0;};
-    CLUSTER(int bP, int eP) { iBegMu=bP; iEndMu=eP; cLng=0; cID=0; };
+    int cType;
+    CLUSTER() { iBegMu=-1; iEndMu=-1; cLng=0; cID=0; cType=0;};
+    CLUSTER(int bP, int eP) { iBegMu=bP; iEndMu=eP; cLng=0; cID=0; cType=0; };
 };
 
 ///////////////////////////////////////////////////////////////////
@@ -104,23 +116,32 @@ public:
     int CLtest_N( pair<long,int> Clust );
 
     int CLtest_Cross( pair<long,int> Clust, vector < pair<long,int> >::iterator Iter);
-    int testMutUnClust( );
+    int checkMutUnClust( );
     int  getGapClust(MUTANT *pMUt, int next) ;  // +1 = next; -1 = prev
 };
 /////////////////////////////////////////////////////////
 
 int LoadHuGen( const char *fPath );
-int loadVCFMutation( const char *vcf_Fname );
+int loadVCFMutation( const char *vcf_Fpath );
 void clearSampl( );
 void memRezerv( );
-void printMutRezerv( );
 
 void printCluMut( int clustOnly, FILE * fRezult );
 void printCluTrace(  );
+void printCluMini(  );
+float entrop1( int cnt, int sum_cnt);
+
 ///////////////////////////////////////////////
 
 int findXroByID( char *xID, int say=1 );
+int setNucleID(char Nuc);
+char getNuc ( int NucID );
 int getNucID(const char Nuc);
+char getCmpl_Nuc( int NucID );
+char getCmpl_Nuc( const char Nuc);
+int getCmpl_NucId(const char Nuc);
+int getCmpl_NucId (int NucID);
+void testNuc();
 int selectXid ( char *buff );       // see it at 'mClust' prog
 
 #endif

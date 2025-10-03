@@ -1,4 +1,5 @@
-// dnk.cpp : Defines the entry point for the console application.
+// Based at mClust_patch progect
+//      Добавлена возможность обработки вставок в мутациях
 //
 //#include <iostream>
 #include <string.h>
@@ -7,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 #include "cmain.h"
 #include "xrosoma.h"
@@ -20,70 +22,59 @@ extern vector < XROSOMA > vecDNK;
 PROGARGS ArgKit;
 int procArg( int argc, char* argv[] );
 
-#ifdef DEBUG_TRACE_TSLD
-FILE *tsld=NULL;
-#endif
+FILE *Ftrace=NULL;
+
 
 /////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[])
 {
-//  1-2: -g Fpath for Xro_file
-//  3-4: -sfd Folder for set Mutation_Files (.vcf)
-//        -s short(Clust_only)
-//        -f full (Mut&Clust)
-//        -d debugg (Track, dist_Mut, dist_Clust)
-//  5-6: -o Folder for output data       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//  7-8: -t % (0.1 - 100) ] default = 1
-    
     double duration;
     int errCnt=0;
+    char Fpath[1024];
     
-    if ( procArg( argc, argv) < 0 )
+    DIR *dir_MUT=NULL;
+    struct dirent *f_MUT;
+    FILE *fMutSet=NULL;
+    
+    clock_t start = clock();
+
+    if ( ArgKit.procArg( argc, argv) < 0 )
         return -1;
     
-#ifdef DEBUG_TRACE_TSLD
-    char buffr[1024];
-    sprintf(buffr, "%smutrace.txt", ArgKit.OUTdir.c_str() );
-    tsld = fopen(buffr, "w");
-#endif
-    
+    sprintf(Fpath, "%smutrace.txt", ArgKit.OUTdir.c_str() );
+    Ftrace = fopen(Fpath, "w");
     
     if ( LoadHuGen( ArgKit.HUGpath.c_str() ) <= 0 )
         return -1;
-    //    testXsize( );
     
-    clock_t start = clock();
-    DIR *dir_MUT = opendir(ArgKit.MUTdir.c_str());
-    if (dir_MUT == NULL) {
-        printf ("<input_directory> containing VCF files does not exist: '%s'\n", ArgKit.MUTdir.c_str());
-        return -1;
+    if ( ArgKit.MUTdir.size() > 0 ) {           //==============  -i option ================
+        dir_MUT = opendir(ArgKit.MUTdir.c_str());
+        if ( dir_MUT == NULL ) {
+            printf ("Cannt OPEN <input_directory> containing VCF files: '%s'\n", ArgKit.MUTdir.c_str());
+            return -1;
+        }
+    }
+    else    {                                   //==============  -l option ==================
+        fMutSet = fopen(ArgKit.Mutlist.c_str(), "r");
+        if ( fMutSet==NULL )    {
+            printf ("Cannt OPEN File containing list VCF_files: '%s'\n", ArgKit.Mutlist.c_str() );
+            return -1;
+        }
     }
     
-    struct dirent *f_MUT;
-    
-    while ( (f_MUT=readdir(dir_MUT)) != NULL ) {
-        //        if ( f_MUT->d_type != DT_REG )
-        //            continue;
-        //        if ( f_MUT->d_name[0]=='.' )
-        //            continue;
-        //
-        if ( ! strstr( f_MUT->d_name, ".vcf") )
-            continue;
-        
+    while ( getNextMutFile( dir_MUT, fMutSet, Fpath ) ) {
         clock_t startS = clock();
-        if ( loadVCFMutation( f_MUT->d_name ) < 0 )
+        if ( loadVCFMutation( Fpath ) < 0 )
             continue;
         
-        if ( ArgKit.openOutFiles ( f_MUT->d_name ) < 0 )
+        if ( ArgKit.openOutFiles (  ) < 0 ) 
             continue;
         
         srand(SRAND_VALUE);
         memRezerv( );
-//        printMutRezerv( );
         
         printf("Processing :   ................\n");
-        
         int clustID = 1;
         int sumMut=0;
         errCnt=0;
@@ -98,7 +89,7 @@ int main(int argc, char* argv[])
                 vecDNK[nX].ClustConnector( &clustID);
             
             sumMut +=  vecDNK[nX].vMutAPO.size();
-            errCnt += vecDNK[nX].testMutUnClust( );
+            errCnt += vecDNK[nX].checkMutUnClust( );
             
             clock_t endT = clock();
             duration = (double)(endT - begT) / CLOCKS_PER_SEC;
@@ -106,28 +97,35 @@ int main(int argc, char* argv[])
                    vecDNK[nX].vMutAPO.size(), vecDNK[nX].vClust.size(),vecDNK[nX].vAggrC.size(),
                    duration );
         }
-//        printMutRezerv( );
         
-        if ( GET_ARG_S(ArgKit.argTAG)  )
+        if ( ArgKit.isArg_S() )
             printCluMut( 1, ArgKit.foutClust );
-        if ( GET_ARG_F(ArgKit.argTAG)  )
+        if ( ArgKit.isArg_F() )
             printCluMut( 0, ArgKit.foutMu_Clu );
-        if ( GET_ARG_D(ArgKit.argTAG)  )
+        if ( ArgKit.isArg_D() )
             printCluTrace(  );
+        if ( ArgKit.isArg_M()  )
+            printCluMini(  );
         
         clock_t stopS = clock();
         duration = (double)(stopS - startS) / CLOCKS_PER_SEC;
         printf("\tProcessed %d mutations in %5.2f seconds.\n", sumMut, duration);
     }
-    closedir(dir_MUT);
-//    printMutRezerv( );
+    if ( dir_MUT )
+        closedir(dir_MUT);
+    if ( fMutSet )
+        fclose(fMutSet);
     
+    ArgKit.closeOutFiles (  );
+    
+    fclose (Ftrace);
     if ( errCnt > 0 )
         printf("\nDetecned %d ERRORS. Look  file 'mutrace.txt'\n", errCnt);
     
     clock_t finish = clock();
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("\nTotal execution time: %5.2f seconds.\n", duration);
+    fprintf(Ftrace,"\nTotal execution time: %5.2f seconds.\n", duration);
 
     
     return 0;
@@ -135,17 +133,48 @@ int main(int argc, char* argv[])
 }
 /////////////////////////////////////////////////////////////////////////
 
-int procArg( int argc, char* argv[] )
+int getNextMutFile( DIR *dir_MUT, FILE *Flist_MUT, char *F_path )
 {
-//  1-2: -g Fpath for Xro_file
-//  3-4: -sfd Folder for set Mutation_Files (.vcf)
-//        -s short(Clust_only)
-//        -f full (Mut&Clust)
-//        -d debugg (Track, dist_Mut, dist_Clust)
-//  5-6: -o Folder for output data       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//  7-8: -t % (0.1 - 100) ] default = 1
-    
-    
+    struct dirent *entry;
+    if ( dir_MUT ) {
+        while ( (entry=readdir(dir_MUT)) != NULL )  {
+            if ( ! strstr( entry->d_name, ".vcf") )
+                continue;
+            strcpy(F_path, ArgKit.MUTdir.c_str() );
+            strcat(F_path, entry->d_name);
+            if ( ! is_file( F_path ) )
+                continue;
+            return 1;
+        }
+        return 0;
+    }
+    char buff[1024];
+    char *pb;
+    while ( fgets(buff, sizeof(buff)-1, Flist_MUT ) ) {
+        if ( ! strstr(buff, ".vcf") )
+            continue;
+        pb = &buff[strlen(buff)-1];
+        if ( *pb=='\n' )
+            *pb = '\0';
+        pb = buff;
+        while ( *pb && *pb <= ' ' )  pb++;
+        if ( ! (*pb) )
+            continue;
+        if ( *pb == '#' )
+            continue;
+        if ( ! is_file( pb ) )
+            continue;
+        
+        strcpy(F_path, pb);
+        return 1;
+    }
+    return 0;
+}
+/////////////////////////////////////////////////////////////////////////
+
+int PROGARGS:: procArg( int argc, char* argv[] )
+{
+
     if ( argc < 7 ) {
         printf ("\nUsage: sbsclust (-s | -f | -sf) <input_directory> -o <output_directory> -g <reference_genome> [-t <p-value>]\n\n");
         printf ("Options:\n");
@@ -168,107 +197,140 @@ int procArg( int argc, char* argv[] )
         return -1;
     }
     
-    FILE *fTest;
-    DIR  *dTest;
+    char what[16];
+    char parList[] = "-g@0 -o@1 -i@2 -l@3 -s@4 -f@5 -d@6 -m@7 -sbs@8 -id@9 -t@10 ";
+    int parmN;
+    
+//    char buffr[4096];
     
     int nP=1;
     while ( nP+1 < argc ) {
-        if ( argv[nP][0] != '-' )   {
-            printf ("Invalid option: '%s'\n", argv[nP]);
-            return -1;
+        snprintf(what, sizeof(what)-4, "%s@", argv[nP] );
+        char *pL = strstr(parList, what);
+        if ( ! pL ) {
+            parmN = -1;
+//            return -1;
         }
-        switch (argv[nP][1]) {
-            case 'o':
-                ArgKit.OUTdir = argv[nP+1];
-                if (ArgKit.OUTdir.back() != '/' )
-                    ArgKit.OUTdir += '/';
-                if ( (dTest=opendir(ArgKit.OUTdir.c_str()) ) )
-                    closedir(dTest);
-                else    {
-                    printf ("<output directory> does not exist: '%s'\n", ArgKit.OUTdir.c_str());
+        else {
+                while ( *pL != '@' ) pL++;
+                pL++;
+                parmN = atoi(pL);
+        }
+        switch ( parmN )    {
+            case 0:
+                if ( argv[nP+1][0] == '-' ) // skipped <reference_genome>
+                    break;
+                HUGpath = argv[nP+1];
+                if ( ! is_file(argv[nP+1]) )    {
+                    printf ("<reference_genome> does not exist: '%s'\n", HUGpath.c_str());
                     return -1;
                 }
+                nP++;
                 break;
-            case 'g':
-                ArgKit.HUGpath = argv[nP+1];
-                if ( (fTest=fopen(ArgKit.HUGpath.c_str(), "r") ) )
-                    fclose(fTest);
-                else    {
-                    printf ("<reference_genome> does not exist: '%s'\n", ArgKit.HUGpath.c_str());
+             case 1:
+                if ( argv[nP+1][0] == '-' ) // skipped <output directory>
+                    break;
+                OUTdir = argv[nP+1];
+                if (OUTdir.back() != '/' )
+                    OUTdir += '/';
+                if ( ! is_dir(argv[nP+1]) )    {
+                    printf ("<output directory> does not exist: '%s'\n", OUTdir.c_str());
                     return -1;
                 }
+                nP++;
                 break;
-            case 's':
-            case 'f':
-            case 'd':
-                ArgKit.MUTdir = argv[nP+1];
-                if (ArgKit.MUTdir.back() != '/' )
-                    ArgKit.MUTdir += '/';
-                if ( (dTest=opendir(ArgKit.MUTdir.c_str()) ) )
-                    closedir(dTest);
-                else    {
-                    printf ("<input_directory> containing VCF files does not exist: '%s'\n", ArgKit.MUTdir.c_str());
+            case 2:
+                if ( argv[nP+1][0] == '-' ) // skipped <input_directory>
+                    break;
+                MUTdir = argv[nP+1];
+                if (MUTdir.back() != '/' )
+                    MUTdir += '/';
+                if ( ! is_dir(argv[nP+1]) )    {
+                    printf ("<input_directory> containing VCF files does not exist: '%s'\n", MUTdir.c_str());
                     return -1;
                 }
-                for ( int i=1; argv[nP][i]; i++ )   {
-                    if ( argv[nP][i]=='s' )
-                        SET_ARG_S(ArgKit.argTAG);
-                    else
-                    if ( argv[nP][i]=='f' )
-                        SET_ARG_F(ArgKit.argTAG);
-                    else
-                    if ( argv[nP][i]=='d' )
-                        SET_ARG_D(ArgKit.argTAG);
-                    else    {
-                        printf ("Invalid option: '%s' : '%c'\n", argv[nP], argv[nP][i]);
-                        return -1;
-                    }
-                }
+                nP++;
                 break;
-            case 't':
-                strncpy(ArgKit.chPart, argv[nP+1], sizeof(ArgKit.chPart)-1);
+            case 3:
+                if ( argv[nP+1][0] == '-' ) // skipped <File_list>
+                    break;
+                Mutlist = argv[nP+1];
+                if ( ! is_file(argv[nP+1]) )    {
+                    printf ("File containing list VCF_files does not exist: '%s'\n", Mutlist.c_str());
+                    return -1;
+                }
+                nP++;
+                break;
+            case 4:
+                argTAG |= _ARG_S;
+                break;
+            case 5:
+                argTAG |= _ARG_F;
+                break;
+            case 6:
+                argTAG |= _ARG_D;
+                break;
+            case 7:
+                argTAG |= _ARG_M;
+                break;
+            case 8:
+                argTAG |= _ARG_SBS;
+                break;
+            case 9:
+                argTAG |= _ARG_ID;
+                break;
+            case 10:
+                strncpy(chPart, argv[nP+1], sizeof(chPart)-1);
                 float fP;
-                sscanf(ArgKit.chPart, "%f", &fP);
+                sscanf(chPart, "%f", &fP);
                 if ( fP <= 0.001 || fP >= 0.999 )   {
-                    printf ("\nInvalid <p-value> = '%s'. Expected ba number >=0.001  and  <=0.999 \n", ArgKit.chPart );
+                    printf ("\nInvalid <p-value> = '%s'. Expected ba number >=0.001  and  <=0.999 \n", chPart );
                     return -1;
                 }
-                
+                nP++;
                 break;
             default:
                 printf ("Invalid option: '%s'\n", argv[nP]);
-                return -1;
+                break;
         }
-        nP += 2;
-        
+        nP++;
     }
     
-    if ( ArgKit.OUTdir.empty() )    {
-        printf ("Not defined:  -o <output_directory> \n");
-        return -1;
-    }
-    if ( ArgKit.HUGpath.empty() )    {
+    if ( isArg_SBS() || isArg_ID()  )
+    { }
+    else
+         argTAG |= _ARG_SBS;  // default set _SBS
+    
+    if ( isArg_S() || isArg_F() || isArg_D() || isArg_M() )
+    { }
+    else
+        argTAG |= _ARG_S;  // default set _S
+    
+    if ( HUGpath.empty() )    {
         printf ("Not defined:  -g <reference_genome> \n");
         return -1;
     }
-    if ( ArgKit.MUTdir.empty() )    {
-        printf ("Not defined: -s <input_directory>\n");
+    if ( OUTdir.empty() )    {
+        printf ("Not defined:  -o <output_directory> \n");
         return -1;
     }
-    
-    return 0;
+   if ( MUTdir.empty() && Mutlist.empty() )    {
+        printf ("Not defined: -i <input_directory>\n         or: -l <list_file>\n ");
+        return -1;
+    }
+    if ( ! MUTdir.empty() && ! Mutlist.empty() )    {
+        printf ("Cannt use options  '-i' and '-l' together\n ");
+        return -1;
+    }
+    return nP;
 }
 /////////////////////////////////////////////////////////////////////////
 
-int PROGARGS::openOutFiles ( const char *vcf_Fname )
+int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
 {
-    char buffr[2048];
-    char inpFname[1024];
-    char commaP[8];
-    
-    const char *pn = strstr(vcf_Fname, ".vcf");
-    memset(inpFname, '\0', sizeof(inpFname) );
-    strncpy(inpFname, vcf_Fname, (pn-vcf_Fname));
+    char commaP[24];
+    string strFpath;
+    string strFN = OUTdir + MutSampl + "+";
     
     strcpy(commaP, chPart);
     for ( int n=0; n<strlen(commaP); n++) {
@@ -277,78 +339,134 @@ int PROGARGS::openOutFiles ( const char *vcf_Fname )
             break;
         }
     }
-    if ( GET_ARG_S(argTAG)  )    {
+    strFN += commaP;
+    
+    if ( isArg_SBS() && isArg_ID() )  {}
+    else
+        if ( isArg_SBS() )
+            strFN +=  "_sbs";
+        else
+            strFN += "_dl";
+
+//  ------------------------
+    if ( ArgKit.isArg_M() )    {
+        if ( foutMini )
+            fclose(foutMini);
+        strFpath = strFN + "_Mini.txt";
+        if ( ! (foutMini=fopen(strFpath.c_str(), "w") ) ) {
+            printf("InvOPENop '%s'\n", strFpath.c_str());
+            goto BadExit;
+        }
+    }
+//  ------------------------
+    if ( ArgKit.isArg_S() )    {
         if ( foutClust )
             fclose(foutClust);
-        foutClust = NULL;
-        sprintf(buffr, "%s%s._%s_Clust.txt", OUTdir.c_str(), inpFname, commaP);  //vecSAMPL[iSamp].SampName.c_str()
-        if ( ! (foutClust=fopen(buffr, "w") ) ) {
-            printf("InvOPENop '%s'\n", buffr);
+        strFpath = strFN + "_Clust.txt";
+        if ( ! (foutClust=fopen(strFpath.c_str(), "w") ) ) {
+            printf("InvOPENop '%s'\n", strFpath.c_str());
             goto BadExit;
         }
     }
-    
-    if ( GET_ARG_F(argTAG)  )    {
+//  ------------------------
+    if ( ArgKit.isArg_F() )    {
         if ( foutMu_Clu )
             fclose(foutMu_Clu);
-        foutMu_Clu = NULL;
-        sprintf(buffr, "%s%s._%s_Clu+MU.txt", OUTdir.c_str(), inpFname, commaP);  //vecSAMPL[iSamp].SampName.c_str()
-        if ( ! (foutMu_Clu=fopen(buffr, "w") ) ) {
-            printf("InvOPENop '%s'\n", buffr);
+        strFpath = strFN + "_CluMut.txt";
+        if ( ! (foutMu_Clu=fopen(strFpath.c_str(), "w") ) ) {
+            printf("InvOPENop '%s'\n", strFpath.c_str());
             goto BadExit;
         }
     }
-    
-    if ( GET_ARG_D(argTAG)  )    {
+//  ------------------------
+    if ( ArgKit.isArg_D() )    {
         if ( foutTrace )
             fclose(foutTrace);
-        foutTrace = NULL;
+        strFpath = strFN + "_Trace.txt";
+        if ( ! (foutTrace=fopen(strFpath.c_str(), "w") ) ) {
+            printf("Failed to create output file:  '%s'\n", strFpath.c_str() );
+            goto BadExit;
+        }
+//  -----------
         if ( foutRndCl )
             fclose(foutRndCl);
-        foutRndCl = NULL;
+        strFpath = strFN + "_RndCl.txt";
+        if ( ! (foutRndCl=fopen(strFpath.c_str(), "w") ) ) {
+            printf("Failed to create output file: '%s'\n", strFpath.c_str() );
+            goto BadExit;
+        }
+//  -----------
         if ( foutRndMu )
             fclose(foutRndMu);
-        foutRndMu = NULL;
-        
-        sprintf(buffr, "%s%s._%s_Trace.txt", OUTdir.c_str(), inpFname, commaP);  //vecSAMPL[iSamp].SampName.c_str()
-        if ( ! (foutTrace=fopen(buffr, "w") ) ) {
-            printf("Failed to create output file:  '%s'\n", buffr);
-            goto BadExit;
-        }
-        sprintf(buffr, "%s%s._%s_RndCl.txt", OUTdir.c_str(), inpFname, commaP);  //vecSAMPL[iSamp].SampName.c_str()
-        if ( ! (foutRndCl=fopen(buffr, "w") ) ) {
-            printf("Failed to create output file: '%s'\n", buffr);
-            goto BadExit;
-        }
-        sprintf(buffr, "%s%s._%s_RndMu.txt", OUTdir.c_str(), inpFname, commaP);  //vecSAMPL[iSamp].SampName.c_str()
-        if ( ! (foutRndMu=fopen(buffr, "w") ) ) {
-            printf("Failed to create output file: '%s'\n", buffr);
+        strFpath = strFN + "_RndMu.txt";
+        if ( ! (foutRndMu=fopen(strFpath.c_str(), "w") ) ) {
+            printf("Failed to create output file: '%s'\n", strFpath.c_str() );
             goto BadExit;
         }
     }
     
     if ( false )    {
     BadExit:
-        if ( foutClust )
-            fclose(foutClust);
-        if ( foutMu_Clu )
-            fclose(foutMu_Clu);
-        if ( foutTrace )
-            fclose(foutTrace);
-        if ( foutRndCl )
-            fclose(foutRndCl);
-        if ( foutRndMu )
-            fclose(foutRndMu);
-        foutClust = NULL;
-        foutMu_Clu = NULL;
-        foutTrace = NULL;
-        foutRndCl = NULL;
-        foutRndMu = NULL;
-        
+        closeOutFiles (  );
         return -1;
     }
     
     return 0;
+}
+/////////////////////////////////////////////////////////////////////////
+
+bool is_dir(const char  *path ) {
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0) {
+        return false; // Ошибка при получении информации о файле
+    }
+    return S_ISDIR(statbuf.st_mode);
+}
+//////////////////////////////////////
+
+bool is_file(const char *path ) {
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0) {
+        return false; // Ошибка при получении информации о файле
+    }
+    return S_ISREG(statbuf.st_mode);
+}
+/////////////////////////////////////////////////////////////////////////
+/*
+int is_directory(const char *path) {
+    struct stat path_stat;
+    int rc;
+    rc  = stat(path, &path_stat);
+    if (rc != 0) {
+        return 0; // ошибка доступа
+    }
+    return S_ISDIR(path_stat.st_mode); // 1 если директория, иначе 0
+}
+ */
+/////////////////////////////////////////////////////////////////////////
+
+void PROGARGS::closeOutFiles (  )
+{
+    if ( foutClust )
+        fclose(foutClust);
+    if ( foutMu_Clu )
+        fclose(foutMu_Clu);
+    if ( foutTrace )
+        fclose(foutTrace);
+    if ( foutRndCl )
+        fclose(foutRndCl);
+    if ( foutRndMu )
+        fclose(foutRndMu);
+    if ( foutMini )
+        fclose(foutMini);
+    foutClust = NULL;
+    foutMu_Clu = NULL;
+    foutTrace = NULL;
+    foutRndCl = NULL;
+    foutRndMu = NULL;
+    foutMini = NULL;
+    
+    return;
 }
 /////////////////////////////////////////////////////////////////////////
 
@@ -384,13 +502,13 @@ int fgets_ShortRec( char *shortRec, int sizeRec, FILE *f_in )
  struct dirent *entry;
  
  // Open the directory
- dir = opendir(path);//(FOLDER_MUT_DATA);
+ dir = opendir(path);
  if (dir == NULL) {
  perror("opendir");
  return EXIT_FAILURE;
  }
  
- printf("Contents of the directory '%s':\n", path);//FOLDER_MUT_DATA);
+ printf("Contents of the directory '%s':\n", path);
  
  // Read entries in the directory
  while ((entry = readdir(dir)) != NULL) {
