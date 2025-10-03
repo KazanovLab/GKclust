@@ -12,13 +12,11 @@
 
 vector < XROSOMA > vecDNK;
 
-char complment[4][2] = { {'C','G'},  {'G','C'}, {'A','T'}, {'T','A'} };
-char NucID[5] = "CGAT";
-int  cmpInd[4] = { _G, _C, _T, _A };
+//char Nucleos[6] = "ACTGN";
+//int _A=0, _C=1, _T=2, _G=3, _N=4;
 
-#ifdef DEBUG_TRACE_TSLD
-extern FILE *tsld;
-#endif
+extern FILE *Ftrace;
+
 
 ///////////////////////////////////////////////////////
 
@@ -54,6 +52,7 @@ int LoadHuGen( const char *fPath )
         printf("Failed to open reference genome: '%s'\n",fPath);
         return -1;
     }
+    fprintf(Ftrace,"Loading genome from '%s'.....\n", fPath);
     int cntXro = 0;
     XROSOMA *pCurXro = NULL;
     while ( 1 )    {
@@ -86,7 +85,7 @@ int LoadHuGen( const char *fPath )
         
         xtrctXID( fBuff );
         if ( findXroByID(fBuff, 0) >= 0 ) {
-            printf("Redefinition chroID=%s", fBuff );
+            printf("\nRedefinition chroID=%s", fBuff );
             fclose (fHuGen );
             return -1;
         }
@@ -115,9 +114,8 @@ int LoadHuGen( const char *fPath )
         pCurXro->maxXsize = pCurXro->Xsize;
     strcpy(pCurXro->Xbody, sGen.c_str() );
     cntXro++;
-    printf("%s  ", pCurXro->XroID.c_str() );
-//    pCurXro->xroSAMPL.
-    printf("\n=== Loaded %d chro\n", cntXro);
+    printf("%s\n=== Loaded %d chro\n", pCurXro->XroID.c_str(), cntXro );
+    fprintf(Ftrace,"=== Loaded %d chromos\n", cntXro);
     
     fclose (fHuGen );
     
@@ -252,25 +250,6 @@ int  findXroByID( char *xID, int say )
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
-int getNucID ( const char Nuc )
-{
-    //    char *pp = strchr(NucID, Nuc);
-    //    return ( ( !pp ) ? -1 : (int)(pp-NucID) );
-    switch (Nuc) {
-        case 'C':
-            return _C;
-        case 'G':
-            return _G;
-        case 'A':
-            return _A;
-        case 'T':
-            return _T;
-        default:
-            break;
-    }
-    return -1;
-}
-////////////////////////////////////////////////////////////////////////////////////
 
 void print_N_zone( )
 {
@@ -280,7 +259,7 @@ void print_N_zone( )
 #ifdef DEBUG_TRACE_TSLD
     for ( int nX=0; nX < vecDNK.size()-1; nX++)    {
         pBody = vecDNK[nX].Xbody;
-        fprintf(tsld, "X.%d", nX );
+        fprintf(Ftrace, "X.%d", nX );
         pBeg = vecDNK[nX].Xbody;
         while ( *pBeg ) {
             while ( *pBeg != 'N' && *pBeg )
@@ -290,10 +269,10 @@ void print_N_zone( )
             pEnd = pBeg;
             while ( *pEnd == 'N' )
                 pEnd++;
-            fprintf(tsld, "\t%ld : %ld", (pBeg-pBody), (pEnd-pBody) );
+            fprintf(Ftrace, "\t%ld : %ld", (pBeg-pBody), (pEnd-pBody) );
             pBeg = pEnd;
         }
-        fprintf(tsld, "\n");
+        fprintf(Ftrace, "\n");
 
     }
 #endif

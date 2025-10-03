@@ -7,13 +7,16 @@
 //
 
 #include <stdlib.h>
+#include <math.h>
+
 #include "cmain.h"
 #include "xrosoma.h"
 
 extern PROGARGS ArgKit;
 
 extern vector < XROSOMA > vecDNK;
-extern string SamplName;
+
+char ClustTypes[2][16] = {"", "COMPACT"};
 
 vector < long > vRndMut;               // posMUT for Random simulator
 vector < pair <long, int> > vRndClu;   // <begPos, cLng>
@@ -24,9 +27,7 @@ bool lesser_pair ( const pair<long,int> &x1, const pair<long,int> &x2 ) {
     return x1.first < x2.first;
 }
 
-#ifdef DEBUG_TRACE_TSLD
-extern FILE *tsld;
-#endif
+extern FILE *Ftrace;
 
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -42,17 +43,10 @@ void memRezerv( )
 }
 //////////////////////////////////////////////////////////////////////////////////
 
-void printMutRezerv( )
-{
-    printf ( "\nvRndMut.capacity=%ld\tMutSpace.reserve=%ld\nmaxMUTsize=%ld\tnmaxMUTsize*nC=%ld\n",
-            vRndMut.capacity(), MutSpace.capacity(), XROSOMA::maxMUTsize, RANDOM_CYCLES * XROSOMA::maxMUTsize);
-    return;
-}
-//////////////////////////////////////////////////////////////////////////////////
-
 void XROSOMA:: findClusters( int *clustID )      //iXro , int Porog
 {
     int cntM;
+    int dLmu;   // distance between Mut in Cluster;
     int MaxP = (int)(vMutAPO.size() -1);
     CLUSTER Clust;
     
@@ -66,12 +60,23 @@ void XROSOMA:: findClusters( int *clustID )      //iXro , int Porog
         if ( cntM > 0 ) {
             Clust.iBegMu = nM;
             Clust.iEndMu = nM + cntM;
-            Clust.cLng = (int)(vMutAPO[Clust.iEndMu].nucPos - vMutAPO[Clust.iBegMu].nucPos);
+            Clust.cLng = (int)(vMutAPO[Clust.iEndMu].nucPos - vMutAPO[Clust.iBegMu].nucPos) + 1;
             Clust.cID   = *clustID;
-            vClust.push_back(Clust);
+//            Clust.cType = 0;
+            dLmu = 1;
             for ( int n=0; n <= cntM; n++ ) {
-                vMutAPO[nM+n].iClust = (int)vClust.size() - 1 ;
+                vMutAPO[nM+n].iClust = (int)vClust.size();
+                if ( n==0 )
+                    continue;
+                if ( (vMutAPO[nM+n].nucPos - vMutAPO[nM+n-1].nucPos) > 1 )
+                    dLmu++;
             }
+            Clust.cType = ( dLmu == 1 ) ? 1 : 0;
+            
+            vClust.push_back(Clust);
+//            for ( int n=0; n <= cntM; n++ ) {
+//                vMutAPO[nM+n].iClust = (int)vClust.size() - 1 ;
+//            }
         }
 
         if ( cntM > 0 )
@@ -103,7 +108,7 @@ void XROSOMA:: ClustConnector( int *clustID )    // int iXro, int Porog
             CombinedCL.iBegMu = vClust[nCL].iBegMu;
             CombinedCL.iEndMu = vClust[nCL+cnt].iEndMu;
             CombinedCL.cLng = (int)(vMutAPO[CombinedCL.iEndMu].nucPos -
-                                    vMutAPO[CombinedCL.iBegMu].nucPos);
+                                    vMutAPO[CombinedCL.iBegMu].nucPos) + 1;
             CombinedCL.cID   = *clustID;
             vAggrC.push_back(CombinedCL);
             for ( int n=CombinedCL.iBegMu; n <= CombinedCL.iEndMu; n++ )    {
@@ -125,7 +130,7 @@ void XROSOMA:: ClustConnector( int *clustID )    // int iXro, int Porog
 void XROSOMA:: addDublRndMut( )
 {
     int nM;
-    int Msiz = (int)vMutAPO.size();
+//    int Msiz = (int)vMutAPO.size();
     unsigned long Rnd_pos;
     vector <long>::iterator Iter;
     
@@ -206,7 +211,7 @@ int XROSOMA:: calcMutPorog(  )
     int indPor = fP * RANDOM_CYCLES  * (Msiz-1);  //(fP/100)
     PorogMut  = MutSpace[indPor];
     
-    if ( GET_ARG_D(ArgKit.argTAG) ) {
+    if ( ArgKit.isArg_D() ) {
         char chP[16];
         sprintf(chP, "%d", PorogMut);
         int step = (int)(MutSpace.size() / 1000);
@@ -348,7 +353,7 @@ int XROSOMA:: calcClustPorog(  ) //int iXro )
     int indPor = fP * RANDOM_CYCLES  * (vCLu_siz-1); //(fP/100)
     PorogClust  = MutSpace[indPor];
     
-    if ( GET_ARG_D(ArgKit.argTAG) ) {
+    if ( ArgKit.isArg_D() ) {
         char chP[16];
         sprintf(chP, "%d", PorogClust);
         int step = (int)(MutSpace.size() / 1000);
@@ -439,8 +444,8 @@ int XROSOMA:: calcClustPorog(  ) //  insert variant
     
     int indPor = fP * RANDOM_CYCLES  * (vCLu_siz-1); //(fP/100)
     PorogClust  = MutSpace[indPor];
-    
-    if ( GET_ARG_D(ArgKit.argTAG) ) {
+ 
+    if ( ArgKit.isArg_D() ) {
         char chP[16];
         sprintf(chP, "%d", PorogClust);
         int step = (int)(MutSpace.size() / 1000);
@@ -542,9 +547,9 @@ void printCluTrace(  )
                 stat_2 = ( nMu==0 || (pXro->vMutAPO[nMu].iAggrCL != pXro->vMutAPO[nMu-1].iAggrCL) ) ? 2 : 3;
             
             //fprintf(fMutClu,"Xr\tPOS\tREF\tALT\t  //APO
-            fprintf(ArgKit.foutTrace,"%s\t%d\t%c\t%s\t",    //%s\t",
+            fprintf(ArgKit.foutTrace,"%s\t%d\t%s\t%s\t",    //%s\t",
                     pXro->XroID.c_str(), (int)pXro->vMutAPO[nMu].nucPos,
-                    pXro->vMutAPO[nMu].nucREF, pXro->vMutAPO[nMu].nucALT );
+                    pXro->vMutAPO[nMu].nucREF.c_str(), pXro->vMutAPO[nMu].nucALT.c_str() );
             //                    ( (vMutAPO[nX][nMu].APOtag == 0 ) ? " " : "APO" ) );
             
 //----- my_Clust
@@ -606,11 +611,167 @@ void printCluTrace(  )
 }
 //===============================================================================
 
+float entrop1( int cnt, int sum_cnt)
+{
+    if ( cnt==0 )
+        return (float)0;
+    
+    double p = (double)cnt / (float)sum_cnt;
+    float rez = (-p) * (float)log2(p);
+    
+    return rez;
+}
+//===============================================================================
+
+void printCluMini(  )
+{
+    XROSOMA *pXro;
+    CLUSTER *pCLU;
+    int stat, nM, iCLU, curMu;
+    int cntRef[5], cntAlt[5];       //NucID[5] = "ACTGN"
+    int sumRef, sumAlt;
+    int REFtoALT[5][5];
+    int cntDEL, cntINS;
+    float entroRef, entroAlt;
+    
+    fprintf(ArgKit.foutMini, "Chr\tClusterID\tbegPos\tLength\tMutCount\tinsMut\tdelMut\tType\t");
+    fprintf(ArgKit.foutMini, "ref%c\tref%c\tref%c\tref%c\tentrRef\talt%c\talt%c\talt%c\talt%c\tentrAlt\t",
+                            getNuc(0), getNuc(1), getNuc(2), getNuc(3),
+                            getNuc(0), getNuc(1), getNuc(2), getNuc(3));
+    fprintf(ArgKit.foutMini, "refCG\trefAT\tentrRef2\taltCG\taltAT\tentrAlt2");
+    for ( int nR=0; nR<2; nR++ )    {
+        for (int nA=0; nA<4; nA++ ) {
+            if ( nR==nA )
+                continue;
+            fprintf(ArgKit.foutMini, "\t%c:%c -->%c:%c", getNuc(nR), getCmpl_Nuc(nR), getNuc(nA), getCmpl_Nuc(nA) );
+        }
+        
+    }
+    fprintf(ArgKit.foutMini, "\tentrMut\n");                                                                // 1 new col
+    
+    for ( int nX=0; nX < vecDNK.size(); nX++ )    {
+        pXro = &vecDNK[nX];
+        if ( pXro->vMutAPO.size()==0 )
+            continue;
+        curMu=0;
+        while ( curMu < pXro->vMutAPO.size() )   {
+            if ( pXro->vMutAPO[curMu].iAggrCL >= 0   )
+                stat = 1;
+            else
+                stat = ( pXro->vMutAPO[curMu].iClust >= 0 ) ? 2 : 0;
+            switch (stat) {
+                case 1:     //AGGR
+                    iCLU = pXro->vMutAPO[curMu].iAggrCL;
+                    pCLU = &(pXro->vAggrC[iCLU]);
+//                    fprintf(ArgKit.foutMini, "%s\tcID_%d\t%d\t%d\t%d\t%s\n", pXro->XroID.c_str(), pCLU->cID,
+//                            pXro->vMutAPO[curMu].nucPos, pCLU->cLng, (pCLU->iEndMu - pCLU->iBegMu) + 1, ClustTypes[pCLU->cType] );
+//                    curMu = pCLU->iEndMu+1;
+                    break;
+                case 2:     //CLUSTER
+                    iCLU = pXro->vMutAPO[curMu].iClust;
+                    pCLU = &(pXro->vClust[iCLU]);
+//                    fprintf(ArgKit.foutMini, "%s\tcID_%d\t%d\t%d\t%d\t%s\n", pXro->XroID.c_str(), pCLU->cID,
+//                            pXro->vMutAPO[curMu].nucPos, pCLU->cLng, (pCLU->iEndMu - pCLU->iBegMu) + 1, ClustTypes[pCLU->cType] );
+//                    curMu = pCLU->iEndMu+1;
+                    break;
+                    
+                default:
+                    curMu++;
+                    continue;
+            }
+            
+            cntDEL = 0;
+            cntINS = 0;
+            sumRef = 0;
+            sumAlt = 0;
+            for ( nM=0; nM<5; nM++ )   {
+                cntRef[nM] = 0;
+                cntAlt[nM] = 0;
+                for ( int n=0; n<5; n++ )
+                    REFtoALT[nM][n] = 0;
+            }
+
+            for ( nM=curMu; nM<=pCLU->iEndMu; nM++  )   {
+                if ( pXro->vMutAPO[nM].mutType != MUT_SINGL )   {
+                    if ( pXro->vMutAPO[nM].mutType == MUT_INSERT )
+                        cntINS++;
+                    else
+                        cntDEL++;
+                    continue;
+                }
+                int iR = getNucID(pXro->vMutAPO[nM].nucREF[0]);
+                cntRef[iR] += 1;
+                sumRef++;
+                int iA; // = getNucID(pXro->vMutAPO[nM].nucALT[0]);
+                for ( int n=0; n<pXro->vMutAPO[nM].nucALT.size(); n++ ) {
+                    if ( ! isalpha(pXro->vMutAPO[nM].nucALT[n]) )
+                        continue;
+                    iA = getNucID(pXro->vMutAPO[nM].nucALT[n]);
+                    cntAlt[iA] += 1;
+                    REFtoALT[iR][iA] += 1;
+                    sumAlt++;
+                }
+            }
+            fprintf(ArgKit.foutMini, "%s\tcID_%d\t%d\t%d\t%d\t%d\t%d\t%s\t", pXro->XroID.c_str(), pCLU->cID,
+                    pXro->vMutAPO[curMu].nucPos, pCLU->cLng, (pCLU->iEndMu - pCLU->iBegMu) + 1,
+                    cntINS, cntDEL, ClustTypes[pCLU->cType] );
+            entroRef = (float)0;
+            entroAlt = (float)0;
+            for ( int n=0; n<4; n++ )   {
+                entroRef += entrop1( cntRef[n], sumRef );
+                entroAlt += entrop1( cntAlt[n], sumAlt );
+            }
+            fprintf(ArgKit.foutMini, "%d\t%d\t%d\t%d\t%5.2f\t%d\t%d\t%d\t%d\t%5.2f\t",
+                    cntRef[0], cntRef[1], cntRef[2], cntRef[3], entroRef,
+                    cntAlt[0],  cntAlt[1],  cntAlt[2],  cntAlt[3], entroAlt );
+            int iC = getNucID('C');
+            int iG = getNucID('G');
+            int iA = getNucID('A');
+            int iT = getNucID('T');
+            entroRef =  entrop1( (cntRef[iC]+cntRef[iG]), (cntRef[iC]+cntRef[iG]+cntRef[iA]+cntRef[iT]) ) +
+                        entrop1( (cntRef[iA]+cntRef[iT]), (cntRef[iC]+cntRef[iG]+cntRef[iA]+cntRef[iT]) );
+            entroAlt =  entrop1( (cntAlt[iC]+cntAlt[iG]), (cntAlt[iC]+cntAlt[iG]+cntAlt[iA]+cntAlt[iT]) ) +
+                        entrop1( (cntAlt[iA]+cntAlt[iT]), (cntAlt[iC]+cntAlt[iG]+cntAlt[iA]+cntAlt[iT]) );
+            fprintf(ArgKit.foutMini, "%d\t%d\t%5.2f\t%d\t%d\t%5.2f",
+                    cntRef[iC]+cntRef[iG], cntRef[iA]+cntRef[iT],  entroRef,
+                    cntAlt[iC]+cntAlt[iG], cntAlt[iA]+cntAlt[iT], entroAlt );
+            sumRef = 0;
+            for ( int nR=0; nR<2; nR++ )    {
+                for (int nA=0; nA<4; nA++ ) {
+                    if ( nR==nA )
+                        continue;
+                    REFtoALT[nR][nA] += REFtoALT[getCmpl_NucId(nR)][getCmpl_NucId(nA)];
+                    fprintf(ArgKit.foutMini, "\t%d", REFtoALT[nR][nA]);
+                    sumRef += REFtoALT[nR][nA];
+                }
+                    
+            }
+            entroRef = (float)0;
+            for ( int nR=0; nR<2; nR++ )    {
+                for (int nA=0; nA<4; nA++ ) {
+                    if ( nR==nA )
+                        continue;
+                    entroRef += entrop1( REFtoALT[nR][nA], sumRef );
+                }
+                
+            }
+            fprintf(ArgKit.foutMini, "\t%5.2f\n", entroRef);
+            curMu = pCLU->iEndMu+1;
+            
+        }
+    }
+    
+    return;
+}
+//===============================================================================
+
 void printCluMut( int clustOnly, FILE * fRezult )
 {
 
     char clustID[16];
     char cntMut[8];
+//    char chREF[8];
+    char *pXb_REF;
     string valVAF;
     char cValV[128];
     int nV;
@@ -619,7 +780,7 @@ void printCluMut( int clustOnly, FILE * fRezult )
     XROSOMA *pXro;
 
     fprintf(fRezult, "Chr\tPos\tRef\tAlt\tVAF\t"); //APO\t");
-    fprintf(fRezult, "ClusterID\tMutCount\n");
+    fprintf(fRezult, "ClusterID\tMutCount\tType\tbeforeREF\tafterREF\n");
     
     
     for ( int nX=0; nX < vecDNK.size(); nX++ )    {
@@ -648,11 +809,16 @@ void printCluMut( int clustOnly, FILE * fRezult )
                 nV++;
             }
     
-            if (stat_1==1 && stat_2==1) {
-                if ( ! clustOnly )
-                    fprintf(fRezult,"%s\t%d\t%c\t%s\t%s\n", // %s\t",
+            pXb_REF = &pXro->Xbody[pXro->vMutAPO[nMu].nucPos-1];
+            
+            if (stat_1==1 && stat_2==1) {   // not cluster
+                if ( ! clustOnly )  {
+                    fprintf(fRezult,"%s\t%d\t%s\t%s\t%s\t\t\t\t%c\t%c\n",
                             pXro->XroID.c_str(), (int)pXro->vMutAPO[nMu].nucPos,
-                            pXro->vMutAPO[nMu].nucREF, pXro->vMutAPO[nMu].nucALT, valVAF.c_str() );
+                            pXro->vMutAPO[nMu].nucREF.c_str(),
+                            pXro->vMutAPO[nMu].nucALT.c_str(), valVAF.c_str(),
+                            *(pXb_REF-1), *(pXb_REF+1) );
+                }
                 continue;
             }
             int indCL = pXro->vMutAPO[nMu].iClust;
@@ -660,26 +826,29 @@ void printCluMut( int clustOnly, FILE * fRezult )
             indCL = pXro->vMutAPO[nMu].iAggrCL;
             pAggr = (indCL < 0) ? NULL : &(pXro->vAggrC[indCL]);
 //---------
-            //fprintf(fMutClu,"#S\tXr\tPOS\tREF\tALT\t  //APO
-            fprintf(fRezult,"%s\t%d\t%c\t%s\t%s\t", // %s\t",
+            //fprintf(fMutClu,"#S\tXr\tPOS\tREF\tALT\t
+            fprintf(fRezult,"%s\t%d\t%s\t%s\t%s\t",
                     pXro->XroID.c_str(), (int)pXro->vMutAPO[nMu].nucPos,
-                    pXro->vMutAPO[nMu].nucREF, pXro->vMutAPO[nMu].nucALT, valVAF.c_str() );
-            //                    ( (vMutAPO[nX][nMu].APOtag == 0 ) ? " " : "APO" ) );
+                    pXro->vMutAPO[nMu].nucREF.c_str(),
+                    pXro->vMutAPO[nMu].nucALT.c_str(), valVAF.c_str() );
+
             
             strcpy(cntMut,  " ");
             strcpy(clustID, " ");
+            int typ =0;
             if ( stat_2 == 1 )  {   // it's not compound cluster
                 sprintf(clustID, "cID_%d", pCLU->cID );
                 //              if ( stat_1 == 2 )      // print nMut only for 1_st Mut
                 sprintf(cntMut, "%d", (pCLU->iEndMu - pCLU->iBegMu) + 1 );
+                typ = pCLU->cType;
             }
             else {                  // Compound cluster
                 sprintf(clustID, "cID_%d", pAggr->cID );
                 //                if ( stat_2 == 2 )      // print nMut only for 1_st Mut
                 sprintf(cntMut, "%d", (pAggr->iEndMu - pAggr->iBegMu) + 1 );
             }
-            //fprintf(fMutClu,"cluID\tnMut\tsampl\n");
-            fprintf(fRezult,"%s\t%s\n", clustID, cntMut );
+            //fprintf(fMutClu,"cluID\tnMut\tType\tprioREF\tafterREF\n");
+            fprintf(fRezult,"%s\t%s\t%s\t%c\t%c\n", clustID, cntMut, ClustTypes[typ], *(pXb_REF-1), *(pXb_REF+1) );
             
         }
     }
@@ -712,7 +881,7 @@ curCL   nextCL  curAGR  nextAGR     stat
 */
 //////////////////////////////////////////////////////////////////////////////////
 
-int XROSOMA:: testMutUnClust( )
+int XROSOMA:: checkMutUnClust( )
 {
     int nM, stat;
     char desiz[8];
@@ -731,8 +900,8 @@ int XROSOMA:: testMutUnClust( )
     if ( vMutAPO.size() == 0 )
         return 0;
     if ( (this - &vecDNK[0]) == 0 )
-        fprintf (tsld, "\n ClusterTEST for '%s'\n", SamplName.c_str() );
-    fprintf (tsld, "%s PorogMUT=%d PorogCLust=%d\n", XroID.c_str(), PorogMut, PorogClust);
+        fprintf (Ftrace, "\n ClusterCHECK for '%s'\n", ArgKit.MutSampl.c_str() );
+//    fprintf (tsld, "%s PorogMUT=%d PorogCLust=%d\n", XroID.c_str(), PorogMut, PorogClust);
     memset (desiz, '\0', 8);
     for ( nM=1; nM<vMutAPO.size(); nM++ )   {
         pcurnMut = &vMutAPO[nM-1];
@@ -753,43 +922,50 @@ int XROSOMA:: testMutUnClust( )
             case 1:     // singl MUT
                 if ( dLnuc > PorogMut )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Д/Б в кластере [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Д/Б в кластере [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 2:     // Singl ->Claster. Claster start .......
                 if ( dLnuc > PorogMut )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Не включен в кластер с головы [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Не включен в кластер с головы [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 3:     // Singl ->(Claster & Aggr). Clust & Aggr start ..........
                 if ( dLnuc > PorogMut )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Не включен в класт+агр с головы [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Не включен в класт+агр с головы [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 4:     // Claster -> Singl ..... Cluster STOP
                 if ( dLnuc > PorogMut )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Не включен в кластер с хвоста [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Не включен в кластер с хвоста [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
 
             case 5:     // ..... Clust & Aggr STOP
                 if ( dLnuc > PorogMut )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Не включен в класт+агр с хвоста [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Не включен в класт+агр с хвоста [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 6:     // "1100" in Clust not in AGGR
                 if ( pcurnMut->iClust == pnextMut->iClust )  {   // same Clust
                     if ( dLnuc <= PorogMut)
                         continue;
-                    fprintf (tsld, "ER.%d '%s': В кластере далекие мутации [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': В кластере далекие мутации [%d - %d] = %d\n",
+                             XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 }
                 if ( pcurnMut->iClust != pnextMut->iClust )  {   // different Clust
                     if ( dLnuc > PorogMut)
                         continue;
-                    fprintf (tsld, "ER.%d '%s': Близкие мутации в разных кластерах [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Близкие мутации в разных кластерах [%d - %d] = %d\n",
+                             XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 }
                 break;
                     
@@ -797,22 +973,26 @@ int XROSOMA:: testMutUnClust( )
                 if ( pcurnMut->iClust != pnextMut->iClust )  {   // different Clust: new AGGR start ...
                     if ( dLnuc > PorogClust )
                         continue;
-                    fprintf (tsld, "ER.%d '%s': Не включен в агрегат с головы [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Не включен в агрегат с головы [%d - %d] = %d\n",
+                             XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                     break;
                 }
                 if ( pcurnMut->iClust == pnextMut->iClust )     // same Clust
-                    fprintf (tsld, "ER.%d '%s': Агрегат начинается внутри кластера [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Агрегат начинается внутри кластера [%d - %d] = %d\n",
+                             XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 8:     // if ( == ) {ERROR}  else Aggr STOP  {dL > PorogMut;}
                 if ( pcurnMut->iClust != pnextMut->iClust )  {   // different Clust: ....AGGR stop
                     if ( dLnuc > PorogClust )
                         continue;
-                    fprintf (tsld, "ER.%d '%s': Не включен в агрегат с хвоста [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Не включен в агрегат с хвоста [%d - %d] = %d\n",
+                             XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                     break;
                 }
                 if ( pcurnMut->iClust == pnextMut->iClust )     // same Clust
-                    fprintf (tsld, "ER.%d '%s': Агрегат заканчивается внутри кластера [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Агрегат заканчивается внутри кластера [%d - %d] = %d\n",
+                             XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 9:     // in Clust && in AGGR
@@ -820,55 +1000,55 @@ int XROSOMA:: testMutUnClust( )
                     continue;
                 if ( pcurnMut->iClust != pnextMut->iClust )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Кластер в разных агрегатах [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Кластер в разных агрегатах [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
                 
             case 13:     // "0011"
                 if ( pcurnMut->iAggrCL == pnextMut->iAggrCL )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n", stat, desiz,
-                         nM-1, pcurnMut->iAggrCL);
-                fprintf (tsld, "ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n", stat, desiz,
-                         nM, pnextMut->iAggrCL);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n",
+                         XroID.c_str(), stat, desiz, nM-1, pcurnMut->iAggrCL);
+                fprintf (Ftrace, "    ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n",
+                         stat, desiz, nM, pnextMut->iAggrCL);
                 break;
                 
             case 23:     // "0111" Clust -> Mut  at AGGR
                 if ( pcurnMut->iAggrCL != pnextMut->iAggrCL )   {
-                    fprintf (tsld, "ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n", stat, desiz,
-                             nM-1, pcurnMut->iAggrCL);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n",
+                             XroID.c_str(), stat, desiz, nM-1, pcurnMut->iAggrCL);
                     break;
                 }
                 dLclu = getGapClust(pnextMut, -1);  //Prev
                 if ( dLclu <= PorogClust )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n", stat, desiz,
-                         nM-1, pcurnMut->iAggrCL);
-                fprintf (tsld, "\t\tОшибка агрегации кластеров [prev]+[M%d]->[A%d] dL=%d\n",
+                fprintf (Ftrace, "X.%s ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n",
+                         XroID.c_str(), stat, desiz, nM-1, pcurnMut->iAggrCL);
+                fprintf (Ftrace, "\t\tОшибка агрегации кластеров [prev]+[M%d]->[A%d] dL=%d\n",
                          nM-1, pcurnMut->iAggrCL, dLclu);
                 break;
                 
             case 33:     // "1011" Clust -> Mut  at AGGR
                 if ( pcurnMut->iAggrCL != pnextMut->iAggrCL )   {
-                    fprintf (tsld, "ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n", stat, desiz,
-                             nM, pnextMut->iAggrCL);
+                    fprintf (Ftrace, "X.%s ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n",
+                             XroID.c_str(), stat, desiz, nM, pnextMut->iAggrCL);
                     break;
                 }
                 dLclu = getGapClust(pcurnMut, +1);  //Next
                 if ( dLclu <= PorogClust )
                     continue;
-                fprintf (tsld, "ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n", stat, desiz,
-                             nM, pnextMut->iAggrCL);
-                fprintf (tsld, "\t\tОшибка агрегации кластеров [С%d]+[next]->[A%d] dL=%d\n",
+                fprintf (Ftrace, "X.%s ER.%d '%s': Некластерная агрегация [M%d]->[A%d]\n",
+                         XroID.c_str(), stat, desiz, nM, pnextMut->iAggrCL);
+                fprintf (Ftrace, "\t\tОшибка агрегации кластеров [С%d]+[next]->[A%d] dL=%d\n",
                              pcurnMut->iClust, pcurnMut->iAggrCL, dLclu);
                 break;
                 
-                
-                
             default:
-                fprintf (tsld, "ER.%d '%s': Некластерная агрегация [%d - %d] = %d\n", stat, desiz, nM-1, nM, dLnuc);
+                fprintf (Ftrace, "X.%s ER.%d '%s': Некластерная агрегация [%d - %d] = %d\n",
+                         XroID.c_str(), stat, desiz, nM-1, nM, dLnuc);
                 break;
         }
-        fprintf (tsld, "\t%d\tC%d\tA%d\n\t%d\tC%d\tA%d\n",
+        fprintf (Ftrace, "\t%d\tC%d\tA%d\n\t%d\tC%d\tA%d\n",
                  pcurnMut->nucPos, pcurnMut->iClust, pcurnMut->iAggrCL,
                  pnextMut->nucPos, pnextMut->iClust, pnextMut->iAggrCL);
         errCnt++;
@@ -896,4 +1076,5 @@ int XROSOMA:: getGapClust(MUTANT *pMUt, int next)   // +1 = next; -1 = prev
     return dL;
 }
 //////////////////////////////////////////////////////////////////////////////////
+
 

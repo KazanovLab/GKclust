@@ -2,58 +2,63 @@
 #ifndef _CMAIN_H__
 #define _CMAIN_H__
 
+#include <dirent.h>
 #include "vector"
 #include "string"
 using namespace std;
 
-#define DEBUG_TRACE_TSLD
+//#define DEBUG_TRACE_TSLD
+
+#define _ARG_S 0x01
+#define _ARG_F 0x02
+#define _ARG_D 0x04
+#define _ARG_M 0x08
+
+#define _ARG_SBS 0x10
+#define _ARG_ID  0x20
 
 struct PROGARGS {
     string HUGpath;
     string MUTdir;
+    string Mutlist;
     string OUTdir;
-    char argTAG;
-    char chPart[8];
+    string MutSampl;
+    unsigned char argTAG;        // s c f d m  ::  sbs id
+    char chPart[8];     // -t value
 //    float PartOfMut;
     FILE * foutClust;
     FILE * foutMu_Clu;
     FILE * foutTrace;
     FILE * foutRndMu;
     FILE * foutRndCl;
+    FILE * foutMini;
     
     PROGARGS() { argTAG='\0'; strcpy (chPart,"0.01");      //PartOfMut = 1;
-                foutClust=NULL; foutMu_Clu=NULL; foutTrace=NULL; foutRndMu=NULL; foutRndCl=NULL; };
-    int openOutFiles ( const char *vcf_Fname );
+                foutClust=NULL; foutMu_Clu=NULL; foutTrace=NULL; foutRndMu=NULL; foutRndCl=NULL; foutMini=NULL;};
+    int procArg( int argc, char* argv[] );
+    int openOutFiles ( );//const char *vcf_Fname );
+    void closeOutFiles (  );
+    bool isArg_M() { return ( (argTAG & _ARG_M) > 0); };
+    bool isArg_S() { return ( (argTAG & _ARG_S) > 0); };
+    bool isArg_F() { return ( (argTAG & _ARG_F) > 0); };
+    bool isArg_D() { return ( (argTAG & _ARG_D) > 0); };
+    
+    bool isArg_SBS() { return ( (argTAG & _ARG_SBS) > 0); };
+    bool isArg_ID() { return ( (argTAG & _ARG_ID) > 0); };
 };
 
-#define PROG_ARG_ID "sfdgot"
-#define _ARG_S 0x01
-#define _ARG_F 0x02
-#define _ARG_D 0x04
-
-#define SET_ARG_S(_TAG)    _TAG |= _ARG_S
-#define GET_ARG_S(_TAG)  (((_TAG & _ARG_S)==0) ? 0 : 1 )
-
-#define SET_ARG_F(_TAG)    _TAG |= _ARG_F
-#define GET_ARG_F(_TAG)  (((_TAG & _ARG_F)==0) ? 0 : 1 )
-
-#define SET_ARG_D(_TAG)    _TAG |= _ARG_D
-#define GET_ARG_D(_TAG)  (((_TAG & _ARG_D)==0) ? 0 : 1 )
-
-
-//#define NO_HUMAN_XRO 24
-#define NO_CANCER_ID 6
 
 #define SRAND_VALUE 199
 #define RANDOM_CYCLES 1000
 
-int  xtrSamplName ( const char  *vcf_Fpath, char *SamplName);   //, char *Folder=NULL);
+void  xtrSamplName ( const char  *vcf_Fpath );
+bool is_dir(const char  *path );
+bool is_file(const char  *path );
+int getNextMutFile( DIR *dir_MUT, FILE *Flist_MUT, char *F_path );
 int fgets_ShortRec( char *shortRec, int sizeRec, FILE *f_in );
 
 void tst_loadMut();
-void print_MutSize();
 void print_N_zone( );
-void testXsize( );
 
 #endif
 

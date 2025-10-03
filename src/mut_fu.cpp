@@ -1,5 +1,5 @@
 
-
+//#include <dirent.h>
 #include <string.h>
 #include <time.h>
 
@@ -7,19 +7,11 @@
 #include "xrosoma.h"
 
 extern PROGARGS ArgKit;
-
 extern vector < XROSOMA > vecDNK;
-string SamplName;   //vector < SAMPLE >  vecSAMPL;
-
-
-#ifdef DEBUG_TRACE_TSLD
-extern FILE *tsld;
-#endif
+extern FILE *Ftrace;
 
 int parsFORMATrec( int recNum, char *pB, int *ind_Xro, MUTANT &rMUT );
 int parsINFOrec( int recNum, char *pB, int *ind_Xro, MUTANT &rMUT );
-//void parsMutRec( char *pB, int *xrNum, int *Xpos, char *chREF, char *chALT,
-//                string &samp );
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -29,100 +21,64 @@ bool lesser_MUT ( const MUTANT &x1, const MUTANT &x2 )
 }
 /////////////////////////////////////////////////////////////////////////////////
 
-int  xtrSamplName ( const char  *vcf_Fname, char *SamplName)
+void  xtrSamplName ( const char  *vcf_Fpath)    //const char  *vcf_Fname,
 {
-
-    int n=0;
-    const char *p;
-    for ( p=vcf_Fname; *p;  p++, n++) {
-        if ( *p == '.' )
-            break;
-        *(SamplName+n) = *p;
-    }
-    if ( *p != '.' )   {
-        printf ("\nCann't extract SAMPLE_NAME from '%s'\n", vcf_Fname);
-        return 0;
-    }
-    *(SamplName+n) = '\0';
-    
-    return 1;
-}
-
-////////////////////////////////////////////////////////////////////////
-/*
-int  xtrSamplName ( const char  *vcf_Fpath, char *SamplName, char *Folder)
-{
-    const char *pFp;
-    
-    pFp = vcf_Fpath + strlen(vcf_Fpath) - 1;
+    const char *pFp = vcf_Fpath + strlen(vcf_Fpath) - 1;
     
     while ( *pFp != '/' ) {
-        if ( pFp == vcf_Fpath ) {
-            printf ( "INV.MutationFilePath (2-nd parm) : '%s'\n", vcf_Fpath );
-            return 0;
-        }
+        if ( pFp == vcf_Fpath )
+            break;
         pFp--;
     }
-    pFp++;  //  '/'
+    if ( *pFp == '/' )
+        pFp++;
     
-    const char *p;
-    int n=0;
-    if ( Folder )   {
-        for ( p=vcf_Fpath; p < pFp;  p++, n++)
-            *(Folder+n) = *p;
-        *(Folder+n) = '\0';
-    }
-    
-    n=0;
-    for ( p=pFp; *p;  p++, n++) {
-        if ( *p == '.' )
+//    const char *pExt = strstr(pFp, ".vcf");
+    const char *pExt = vcf_Fpath + strlen(vcf_Fpath) - 1;
+    while ( *pExt != '.' ) {
+        if ( pExt == vcf_Fpath )
             break;
-        *(SamplName+n) = *p;
+        pExt--;
     }
-    if ( *p != '.' )   {
-        printf ("\nCann't extract SAMPLE_NAME from '%s'\n", vcf_Fpath);
-        return 0;
-    }
-    *(SamplName+n) = '\0';
+    if ( *pExt == '.' )
+        pExt--;
     
-    return 1;
+    ArgKit.MutSampl.clear();
+    for ( const char *p=pFp; p<=pExt;  p++ )
+        ArgKit.MutSampl += *p;
+    
+    clearSampl( );
+    
+    return;
 }
-*/
-/////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
-int loadVCFMutation( const char *vcf_Fname )
+int loadVCFMutation( const char *vcf_Fpath )
 {
     int vcfFORMAT=0;        // if 0: get VAF from INFO (t_alt_count, t_ref_count)
                             // if 1: get VAF from FORMAT (AD)
     MUTANT rdMUT, emptyMUT;
-    char cBuffer[4096];
-    int ind_Xro=-1, curnt_X=-1;
-//    int nMutXro=0;
-//    clock_t startP=0, startX=0, stopP=0, stopX=0;
-//    double duration;
-
+    int ind_Xro=-1;
     long startP = clock();
     
-    printf("\nLoading mutations from '%s' ......\n", vcf_Fname);
-    sprintf(cBuffer, "%s%s", ArgKit.MUTdir.c_str(), vcf_Fname );
-    FILE *f_Mutas=fopen( cBuffer, "rb");
+    
+    
+    printf("\nLoading mutations from '%s' ......\n", vcf_Fpath);
+    fprintf(Ftrace, "\nLoading mutations from '%s' ......\n", vcf_Fpath);
+//    sprintf(cBuffer, "%s%s", ArgKit.MUTdir.c_str(), vcf_Fname );
+    FILE *f_Mutas=fopen( vcf_Fpath, "rb");    
     if ( f_Mutas==NULL ) {
-        printf ("\nFailed to open VCF file: '%s'\n", cBuffer );
+        printf ("\nFailed to open VCF file: '%s'\n", vcf_Fpath );
         return -1;
     }
 
-    if ( ! xtrSamplName ( vcf_Fname, cBuffer) ) {
-        fclose(f_Mutas);
-        return -1;
-    }
-    
-    if  ( ! SamplName.empty() )
-        clearSampl( );
-        SamplName = cBuffer;
-//    }
-    
+    xtrSamplName ( vcf_Fpath );
+        
     int cntAllRec=0;
     int cntIgnor=0;
+    int cntWarning=0;
+    char cBuffer[4096];
+    
     while ( 1 ) {
         memset( (void *)cBuffer, '\0', sizeof(cBuffer));
         if ( fgets_ShortRec(cBuffer, sizeof(cBuffer)-1, f_Mutas )==0 )
@@ -141,42 +97,55 @@ int loadVCFMutation( const char *vcf_Fname )
             fclose(f_Mutas);
             return -1;
         }
+        if ( rdMUT.isDel() && rdMUT.isIns() )   {
+            fprintf(Ftrace, "Error at REF/ALT fields: X.%s nucPos=%d '%s' -> '%s'\n",
+                    vecDNK[ind_Xro].XroID.c_str(), rdMUT.nucPos, rdMUT.nucREF.c_str(), rdMUT.nucALT.c_str() );
+            cntWarning++;
+        }
         if ( retC == 0 )    {
             cntIgnor++;
             continue;
         }
         
 //        vecDNK[ind_Xro].testValidDNK(rdMUT.nucPos, rdMUT.nucREF );   do it at parser
-//          cAPO = ( vecDNK[ind_Xro].APOtest(rdMUT.nucPos, rdMUT.nucREF, crdMUT.nucALT) > 0 ) ? 1 : 0;
+//        cAPO = ( vecDNK[ind_Xro].APOtest(rdMUT.nucPos, rdMUT.nucREF, crdMUT.nucALT) > 0 ) ? 1 : 0;
         if ( vecDNK[ind_Xro].vMutAPO.empty() || vecDNK[ind_Xro].vMutAPO.back().nucPos <= rdMUT.nucPos )
             vecDNK[ind_Xro].vMutAPO.push_back( rdMUT );
         else {
             vector <MUTANT>::iterator Iter =
             lower_bound( vecDNK[ind_Xro].vMutAPO.begin( ), vecDNK[ind_Xro].vMutAPO.end( ),
                         rdMUT,  lesser_MUT);
-            if ( Iter->nucPos == rdMUT.nucPos ) {
-                printf("\tLine %d IGNORED: DublPos of Mutation: %s %d REF'%c' ALT'%s'\n", cntAllRec,
-                       vecDNK[ind_Xro].XroID.c_str(), rdMUT.nucPos, rdMUT.nucREF, rdMUT.nucALT);
-                cntIgnor++;
-            }
-            else
+            if ( Iter->nucPos != rdMUT.nucPos ) {
                 vecDNK[ind_Xro].vMutAPO.insert( Iter, rdMUT );
+                continue;
+            }
+            printf("\tLine %d IGNORED: DublPos of Mutation: %s %d REF'%s' ALT'%s'\n", cntAllRec,
+                       vecDNK[ind_Xro].XroID.c_str(), rdMUT.nucPos, rdMUT.nucREF.c_str(), rdMUT.nucALT.c_str());
+            fprintf(Ftrace, "\tLine %d IGNORED: DublPos of Mutation: %s %d REF'%s' ALT'%s'\n", cntAllRec,
+                       vecDNK[ind_Xro].XroID.c_str(), rdMUT.nucPos, rdMUT.nucREF.c_str(), rdMUT.nucALT.c_str());
+            cntIgnor++;
+            cntWarning++;
         }
 
     }
-    
     fclose(f_Mutas);
     
-    for ( int nX=0; nX<vecDNK.size(); nX++ )
+    int cntMut=0;
+    for ( int nX=0; nX<vecDNK.size(); nX++ )    {
+        cntMut += vecDNK[nX].vMutAPO.size();
         if ( vecDNK[nX].maxMUTsize < vecDNK[nX].vMutAPO.size() )
             vecDNK[nX].maxMUTsize = vecDNK[nX].vMutAPO.size() + 1;
+    }
     
     long stopP = clock();
     double duration = (double)(stopP - startP) / CLOCKS_PER_SEC;
-    printf("=======endLoading: MUTcnt=%d Ignored=%d -> %d  dT=%5.2f\n\n", cntAllRec, cntIgnor,
-           cntAllRec-cntIgnor, duration );
+    if ( cntWarning > 0 )
+        printf("!!! CHECK VCF_file. Finded %d errors(Look file 'mutrace.txt')\n", cntWarning );
     
-    return cntAllRec;
+    printf("=== Loaded %d mutations; ignored=%d   dT=%5.2f\n", cntMut, cntIgnor, duration );
+    fprintf(Ftrace,"=== Loaded %d mutations; ignored=%d   dT=%5.2f\n", cntMut, cntIgnor, duration );
+    
+    return cntMut;
 }
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -195,31 +164,37 @@ void  clearSampl( )
 }
 /////////////////////////////////////////////////////////////////////////////////
 
-/*
-void print_MutSize()
+void MUTANT:: identiMuType(  )
 {
-    FILE *Ftest;
-    char buffr[1024];
-    int nX, nS;
+    int cntNuc=0;
     
-    sprintf(buffr,"%sMutSizes.txt", ArgKit.OUTdir.c_str() );
-    Ftest =fopen(buffr, "w");
-    
-    fprintf(Ftest, "XRO\tXsize");
-    for ( nS=0; nS<vecSAMPL.size(); nS++)
-        fprintf(Ftest, "\tS.%d", nS);
-    fprintf(Ftest, "\n");
-    
-    for ( nX=0; nX<NO_HUMAN_XRO; nX++)  {
-        fprintf(Ftest, "%d\t%ld", vecDNK[nX].chrNum, vecDNK[nX].Xsize );
-        for ( nS=0; nS<vecSAMPL.size(); nS++)
-            fprintf(Ftest, "\t%ld", vecSAMPL[nS].vMutAPO[nX].size() );
-        fprintf(Ftest, "\n");
+    if ( nucREF.size() == 1 ) {
+        if ( nucALT.size() == 1 )   {
+            setSingl();
+            return;
+        }
+        for ( int n=0; n<nucALT.size(); n++)     {
+            if ( nucALT[n]==',' )
+                cntNuc--;
+            else
+                cntNuc++;
+        }
+        if ( cntNuc > 1 )
+            setIns();
+        else
+            setSingl();
+        return;
     }
-    fclose(Ftest);
+//----- sREF.size() > 1
+    if ( nucALT.size() == 1 )
+        setDel();
+    else    {
+        setDel();
+        setIns();
+    }
+    
     return;
 }
-*/
 /////////////////////////////////////////////////////////////////////////////////
 
 int parsFORMATrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
@@ -237,27 +212,22 @@ int parsFORMATrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
 
     *ind_Xro = findXroByID(cXr);
     if ( *ind_Xro  < 0 ) {
-        printf("\tLine %d:: Unknown chromo_name %s\n\t'%s'\n", recNum+1, cXr, pRec);
+        printf("\tLine %d:: Unknown CHROM_name %s\n\t'%s'\n", recNum+1, cXr, pRec);
         return -1;
     }
-    
-    int cntNuc=0;
-    char *pA=cALT;
-    while ( *pA )   {
-        if ( *pA==',' )
-            cntNuc--;
-        else
-            cntNuc++;
-        pA++;
+    rMUT.nucREF = cREF;
+    rMUT.nucALT = cALT;
+    rMUT.identiMuType( );
+    if ( rMUT.isSingl() ) {
+        if (  ! ArgKit.isArg_SBS() )       // set only param '-id'
+            return 0;
     }
-    if ( cntNuc > 1 || strlen(cREF) > 1  ) {          //    || strlen(cALT) > 1 ) {
-//        printf("\tLine %d IGNORED: Insertion: %s %d REF'%s' ALT'%s'\n", recNum+1, cXr, rMUT.nucPos, cREF, cALT);
-        return 0;
+    else    {
+        if (  ! ArgKit.isArg_ID() )         // unset param '-id'
+           return 0;
     }
     
-    rMUT.nucREF = cREF[0];
-    strncpy(rMUT.nucALT, cALT, 8);
-    if ( ! vecDNK[*ind_Xro].testValidDNK(rMUT.nucPos, rMUT.nucREF ) )
+    if ( ! vecDNK[*ind_Xro].testValidDNK(rMUT.nucPos, rMUT.nucREF[0] ) )
         return -1;
     
     char *pAD = cFORMAT;
@@ -270,8 +240,8 @@ int parsFORMATrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
         pAD++;
     }
     if ( ! (*pAD)  )    {
-        printf("\tLine %d:: Not found AD_field at FORMAT '%s'\n\t'%s'\n", recNum+1, cFORMAT, pRec);
-        return 0;
+//        printf("\tLine %d:: Not found AD_field at FORMAT '%s'\n\t'%s'\n", recNum+1, cFORMAT, pRec);
+        return 1;   // 0
     }
     
     pAD = N845_2;
@@ -284,8 +254,8 @@ int parsFORMATrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
             break;
     }
     if ( ! (*pAD)  )    {
-        printf("\tLine %d:: Not found AD_values\n\tFORMAT '%s'\n\t       '%s'\n", recNum+1, cFORMAT, N845_2);
-        return 0;
+//        printf("\tLine %d:: Not found AD_values\n\tFORMAT '%s'\n\t       '%s'\n", recNum+1, cFORMAT, N845_2);
+        return 1;   // 0
     }
     
     int counts[4]={0,0,0,0};
@@ -328,15 +298,21 @@ int parsINFOrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
         printf("\tLine %d:: Unknown chromo_name %s\n\t'%s'\n", recNum+1, cXr, pRec);
         return -1;
     }
-    if ( strlen(cREF) > 1  || strlen(cALT) > 1 ) {
-//        printf("\tLine %d IGNORED: Insertion: %s %d REF'%s' ALT'%s'\n", recNum+1, cXr, rMUT.nucPos, cREF, cALT);
-        return 0;
+    rMUT.nucREF = cREF;
+    rMUT.nucALT = cALT;
+    rMUT.identiMuType( );
+//    if ( rMUT.mutType != MUT_SINGL )
+//        return 0;
+    if ( rMUT.isSingl() ) {
+        if (  ! ArgKit.isArg_SBS() )       // set only param '-id'
+            return 0;
+    }
+    else    {
+        if (  ! ArgKit.isArg_ID() )         // unset param '-id'
+            return 0;
     }
     
-    rMUT.nucREF = cREF[0];
-    strncpy(rMUT.nucALT, cALT, 8);
-    
-    if ( !vecDNK[*ind_Xro].testValidDNK(rMUT.nucPos, rMUT.nucREF ) )
+    if ( !vecDNK[*ind_Xro].testValidDNK(rMUT.nucPos, rMUT.nucREF[0] ) )
         return -1;
     
     int alt_count, ref_count;
@@ -354,7 +330,7 @@ int parsINFOrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
     ref_count = atoi(pCount);
 
     if ( ref_count > 0 )
-        rMUT.calcVAF[0] = (float)alt_count / (float)ref_count;
+        rMUT.calcVAF[0] = (float)alt_count / (float)(ref_count+alt_count);
     
     return 1;
 }
