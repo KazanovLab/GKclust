@@ -8,6 +8,8 @@
 
 #include <stdlib.h>
 #include <math.h>
+#include <unistd.h>
+//#include <stdio.h>
 
 #include "cmain.h"
 #include "xrosoma.h"
@@ -21,7 +23,7 @@ char ClustTypes[2][16] = {"", "COMPACT"};
 vector < long > vRndMut;               // posMUT for Random simulator
 vector < pair <long, int> > vRndClu;   // <begPos, cLng>
 
-vector < int > MutSpace;  // Space between Mutations
+vector < int > MutSpace;  // Space between Mutations || Cluster Sizes thru GENOME at stat
 
 bool lesser_pair ( const pair<long,int> &x1, const pair<long,int> &x2 ) {
     return x1.first < x2.first;
@@ -175,7 +177,7 @@ int XROSOMA:: calcMutPorog(  )
     if ( Msiz < 3 )
         return 0;
  
-    clock_t startP = clock();
+//    clock_t startP = clock();
     
     MutSpace.clear();
     
@@ -224,8 +226,8 @@ int XROSOMA:: calcMutPorog(  )
         }
 
     }
-    clock_t stopP = clock();
-    double duration = (double)(stopP - startP) / CLOCKS_PER_SEC;
+//    clock_t stopP = clock();
+//    double duration = (double)(stopP - startP) / CLOCKS_PER_SEC;
 //    printf("%s.calcMutPorog [%d] dT=%5.2f\n", XroID.c_str(), Msiz, duration );
     
     return PorogMut;
@@ -306,7 +308,7 @@ int XROSOMA:: calcClustPorog(  ) //int iXro )
     if ( vCLu_siz < 3 )
         return 0;
     
-    clock_t startP = clock();
+//    clock_t startP = clock();
     
     MutSpace.clear();
     
@@ -367,8 +369,8 @@ int XROSOMA:: calcClustPorog(  ) //int iXro )
 
     }
 
-    clock_t stopP = clock();
-    double duration = (double)(stopP - startP) / CLOCKS_PER_SEC;
+//    clock_t stopP = clock();
+//    double duration = (double)(stopP - startP) / CLOCKS_PER_SEC;
 //    printf("%s.calcClustPorog [%d] dT=%5.2f\n\n", XroID.c_str(), vCLu_siz, duration );
     
     return PorogClust;
@@ -762,6 +764,97 @@ void printCluMini(  )
     }
     
     return;
+}
+//===============================================================================
+
+void printCluStat( )
+{
+    XROSOMA *pXro;
+    CLUSTER *pCLU;
+    int curMu, iCLU, cntMut, stat=0;
+    int sumSiz=0, sizMax=0, sizMin=0, sizMiddl=0, sizMedi=0;
+    int cntSiz2=0, cntSiz3=0, cntSiz4=0;
+    int cntClust=0, cntMutGen=0, cntMutInClust=0;
+    
+    if ( ! ArgKit.foutHStat )    {
+        if ( is_file( ArgKit.HStatpath.c_str() ) )
+            ArgKit.foutHStat=fopen(ArgKit.HStatpath.c_str(), "a");
+        else    {
+             ArgKit.foutHStat=fopen(ArgKit.HStatpath.c_str(), "w");
+             stat = 1;
+        }
+        if ( ! ArgKit.foutHStat ) {
+            printf("InvOPENop '%s'\n", ArgKit.HStatpath.c_str() );
+            return;
+        }
+    }
+    if ( stat )
+        fprintf(ArgKit.foutHStat, "Sample\tNumMut\tNumMutInClust\tNumClust\tMinClustSize\tMaxClustSize\tMean\tMedian\tSize=2\tSize=3\tSize>=4\n");
+   
+    if ( MutSpace.capacity() < vecDNK[0].genCLUSTsize )
+        MutSpace.reserve( vecDNK[0].genCLUSTsize );
+    MutSpace.clear();
+    
+    for ( int nXr=0; nXr<vecDNK.size(); nXr++ ) {
+        pXro = &vecDNK[nXr];
+        if ( pXro->vMutAPO.size()==0 )
+            continue;
+        cntMutGen += (int)pXro->vMutAPO.size();
+        curMu=0;
+        while ( curMu < pXro->vMutAPO.size() )   {
+            if ( pXro->vMutAPO[curMu].iAggrCL >= 0   )
+                stat = 1;
+            else
+                stat = ( pXro->vMutAPO[curMu].iClust >= 0 ) ? 2 : 0;
+            switch (stat) {
+                case 1:     //AGGR
+                    iCLU = pXro->vMutAPO[curMu].iAggrCL;
+                    pCLU = &(pXro->vAggrC[iCLU]);
+                    break;
+                case 2:     //CLUSTER
+                    iCLU = pXro->vMutAPO[curMu].iClust;
+                    pCLU = &(pXro->vClust[iCLU]);
+                    break;
+                    
+                default:
+                    curMu++;
+                    continue;
+            }
+            cntClust++;
+            cntMut = (pCLU->iEndMu - pCLU->iBegMu) + 1;
+            MutSpace.push_back(cntMut);
+            sumSiz += cntMut;
+            switch ( cntMut ) {
+                case 0:
+                    break;
+                case 2:
+                    cntSiz2++;
+                    break;
+                case 3:
+                    cntSiz3++;
+                    break;
+                default:        // >=4
+                    cntSiz4++;
+                    break;
+            }
+            cntMutInClust += cntMut;
+            curMu = pCLU->iEndMu+1;
+        }
+    }
+    sort(MutSpace.begin(), MutSpace.end());
+    int L = (int)MutSpace.size();
+    sizMin = MutSpace[0];
+    sizMax = ( L==1 ) ? sizMin : MutSpace[L-1];
+    sizMiddl = sumSiz  / L;
+    sizMedi  = ( L % 2 )  ? MutSpace[L/2] : (MutSpace[L/2] + MutSpace[L/2 -1]) / 2;
+    
+//               "Sample\tMaxClustSize\tMinClustSize\tMean\tMedian\tSize=2\tSize=3\tSize>=4\n"
+// "Sample\tNumMut\tNumMutInClust\tNumClust\tMinClustSize\tMaxClustSize\tMean\tMedian\tSize=2\tSize=3\tSize>=4\n"
+    fprintf(ArgKit.foutHStat, "%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", ArgKit.MutSampl.c_str(),
+                            cntMutGen, cntMutInClust, cntClust, sizMin, sizMax, sizMiddl, sizMedi, cntSiz2, cntSiz3, cntSiz4 );
+    fflush(ArgKit.foutHStat);                 // сброс буфера stdio
+    int fd = fileno(ArgKit.foutHStat);        // получить файловый дескриптор
+    fsync(fd);                               // заставить ОС записать на диск
 }
 //===============================================================================
 

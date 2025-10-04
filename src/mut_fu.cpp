@@ -21,7 +21,7 @@ bool lesser_MUT ( const MUTANT &x1, const MUTANT &x2 )
 }
 /////////////////////////////////////////////////////////////////////////////////
 
-void  xtrSamplName ( const char  *vcf_Fpath)    //const char  *vcf_Fname,
+void  xtrSamplName ( const char  *vcf_Fpath, string &sName )    //const char  *vcf_Fname,
 {
     const char *pFp = vcf_Fpath + strlen(vcf_Fpath) - 1;
     
@@ -43,11 +43,11 @@ void  xtrSamplName ( const char  *vcf_Fpath)    //const char  *vcf_Fname,
     if ( *pExt == '.' )
         pExt--;
     
-    ArgKit.MutSampl.clear();
+    sName.clear(); // ArgKit.MutSampl.clear();
     for ( const char *p=pFp; p<=pExt;  p++ )
-        ArgKit.MutSampl += *p;
+        sName += *p; //ArgKit.MutSampl += *p;
     
-    clearSampl( );
+//    clearSampl( );
     
     return;
 }
@@ -72,7 +72,8 @@ int loadVCFMutation( const char *vcf_Fpath )
         return -1;
     }
 
-    xtrSamplName ( vcf_Fpath );
+    xtrSamplName ( vcf_Fpath, ArgKit.MutSampl);
+    clearSampl( );
         
     int cntAllRec=0;
     int cntIgnor=0;
@@ -140,7 +141,7 @@ int loadVCFMutation( const char *vcf_Fpath )
     long stopP = clock();
     double duration = (double)(stopP - startP) / CLOCKS_PER_SEC;
     if ( cntWarning > 0 )
-        printf("!!! CHECK VCF_file. Finded %d errors(Look file 'mutrace.txt')\n", cntWarning );
+        printf("\n!!! CHECK VCF_file. Finded %d errors(Look file 'mutrace.txt')\n\n", cntWarning );
     
     printf("=== Loaded %d mutations; ignored=%d   dT=%5.2f\n", cntMut, cntIgnor, duration );
     fprintf(Ftrace,"=== Loaded %d mutations; ignored=%d   dT=%5.2f\n", cntMut, cntIgnor, duration );
