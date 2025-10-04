@@ -1,5 +1,7 @@
 // Based at mClust_patch progect
 //      Добавлена возможность обработки вставок в мутациях
+//      Добавлена выдача 'mini'
+//      Добавлена обработка статистики по геному и выдача 'stat'
 //
 //#include <iostream>
 #include <string.h>
@@ -16,6 +18,7 @@
 
 long XROSOMA::maxXsize = 0;
 long XROSOMA::maxMUTsize = 0;
+int XROSOMA::genCLUSTsize=0;
 int XROSOMA::chrIDmode =-1; 
 extern vector < XROSOMA > vecDNK;
 
@@ -90,6 +93,7 @@ int main(int argc, char* argv[])
             
             sumMut +=  vecDNK[nX].vMutAPO.size();
             errCnt += vecDNK[nX].checkMutUnClust( );
+            vecDNK[0].genCLUSTsize += (int)vecDNK[nX].vClust.size();
             
             clock_t endT = clock();
             duration = (double)(endT - begT) / CLOCKS_PER_SEC;
@@ -106,6 +110,8 @@ int main(int argc, char* argv[])
             printCluTrace(  );
         if ( ArgKit.isArg_M()  )
             printCluMini(  );
+        if ( ArgKit.isArg_STAT()  )
+            printCluStat(  );
         
         clock_t stopS = clock();
         duration = (double)(stopS - startS) / CLOCKS_PER_SEC;
@@ -198,7 +204,7 @@ int PROGARGS:: procArg( int argc, char* argv[] )
     }
     
     char what[16];
-    char parList[] = "-g@0 -o@1 -i@2 -l@3 -s@4 -f@5 -d@6 -m@7 -sbs@8 -id@9 -t@10 ";
+    char parList[] = "-g@0 -o@1 -i@2 -l@3 -s@4 -f@5 -d@6 -m@7 -sbs@8 -id@9 -stat@10 -t@11 ";
     int parmN;
     
 //    char buffr[4096];
@@ -279,7 +285,10 @@ int PROGARGS:: procArg( int argc, char* argv[] )
             case 9:
                 argTAG |= _ARG_ID;
                 break;
-            case 10:
+            case 10:        //stat
+                argTAG |= _ARG_STAT;
+                break;
+            case 11:
                 strncpy(chPart, argv[nP+1], sizeof(chPart)-1);
                 float fP;
                 sscanf(chPart, "%f", &fP);
@@ -301,7 +310,7 @@ int PROGARGS:: procArg( int argc, char* argv[] )
     else
          argTAG |= _ARG_SBS;  // default set _SBS
     
-    if ( isArg_S() || isArg_F() || isArg_D() || isArg_M() )
+    if ( isArg_S() || isArg_F() || isArg_D() || isArg_M() || isArg_STAT() )
     { }
     else
         argTAG |= _ARG_S;  // default set _S
@@ -349,7 +358,7 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
             strFN += "_dl";
 
 //  ------------------------
-    if ( ArgKit.isArg_M() )    {
+    if ( isArg_M() )    {
         if ( foutMini )
             fclose(foutMini);
         strFpath = strFN + "_Mini.txt";
@@ -358,8 +367,8 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
             goto BadExit;
         }
     }
-//  ------------------------
-    if ( ArgKit.isArg_S() )    {
+    //  ------------------------
+    if ( isArg_S() )    {
         if ( foutClust )
             fclose(foutClust);
         strFpath = strFN + "_Clust.txt";
@@ -369,7 +378,7 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
         }
     }
 //  ------------------------
-    if ( ArgKit.isArg_F() )    {
+    if ( isArg_F() )    {
         if ( foutMu_Clu )
             fclose(foutMu_Clu);
         strFpath = strFN + "_CluMut.txt";
@@ -379,7 +388,7 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
         }
     }
 //  ------------------------
-    if ( ArgKit.isArg_D() )    {
+    if ( isArg_D() )    {
         if ( foutTrace )
             fclose(foutTrace);
         strFpath = strFN + "_Trace.txt";
@@ -404,7 +413,34 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
             goto BadExit;
         }
     }
-    
+    //  ------------------------
+    if ( isArg_STAT() )    {
+        HStatpath = OUTdir + HUGname + "+" + commaP;
+        if ( isArg_SBS() && isArg_ID() )  {}
+        else
+            if ( isArg_SBS() )
+                HStatpath +=  "_sbs";
+            else
+                HStatpath += "_dl";
+            HStatpath += "_Stat.txt";
+    }
+/*    if ( isArg_STAT() )    {
+        if ( foutStat )
+            fclose(foutStat);
+        strFpath = strFN + "_Stat.txt";
+        if ( is_file(strFpath.c_str() ) )
+            foutStat=fopen(strFpath.c_str(), "a");      // newStatFile == 0
+        else    {
+            foutStat=fopen(strFpath.c_str(), "w");
+            newStatFile = 1;
+        }
+        if ( ! foutStat ) {
+            printf("InvOPENop '%s'\n", strFpath.c_str());
+            goto BadExit;
+        }
+    }
+ */
+
     if ( false )    {
     BadExit:
         closeOutFiles (  );
@@ -459,12 +495,15 @@ void PROGARGS::closeOutFiles (  )
         fclose(foutRndMu);
     if ( foutMini )
         fclose(foutMini);
+//    if ( foutMini )
+//        fclose(foutStat);
     foutClust = NULL;
     foutMu_Clu = NULL;
     foutTrace = NULL;
     foutRndCl = NULL;
     foutRndMu = NULL;
     foutMini = NULL;
+//    foutStat = NULL;
     
     return;
 }

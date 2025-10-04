@@ -79,6 +79,7 @@ private:
 public:
     static long maxXsize;
     static long maxMUTsize;
+    static int genCLUSTsize;
     static int  chrIDmode;
 	string XfName;
 	string  XroID;
@@ -129,6 +130,7 @@ void memRezerv( );
 void printCluMut( int clustOnly, FILE * fRezult );
 void printCluTrace(  );
 void printCluMini(  );
+void printCluStat(  );
 float entrop1( int cnt, int sum_cnt);
 
 ///////////////////////////////////////////////

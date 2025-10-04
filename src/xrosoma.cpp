@@ -11,6 +11,7 @@
 #include "xrosoma.h"
 
 vector < XROSOMA > vecDNK;
+extern PROGARGS ArgKit;
 
 //char Nucleos[6] = "ACTGN";
 //int _A=0, _C=1, _T=2, _G=3, _N=4;
@@ -52,6 +53,8 @@ int LoadHuGen( const char *fPath )
         printf("Failed to open reference genome: '%s'\n",fPath);
         return -1;
     }
+    xtrSamplName ( fPath, ArgKit.HUGname);
+    
     fprintf(Ftrace,"Loading genome from '%s'.....\n", fPath);
     int cntXro = 0;
     XROSOMA *pCurXro = NULL;

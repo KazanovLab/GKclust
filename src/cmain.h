@@ -16,6 +16,7 @@ using namespace std;
 
 #define _ARG_SBS 0x10
 #define _ARG_ID  0x20
+#define _ARG_STAT 0x40
 
 struct PROGARGS {
     string HUGpath;
@@ -23,21 +24,24 @@ struct PROGARGS {
     string Mutlist;
     string OUTdir;
     string MutSampl;
+    string HUGname;
+    string HStatpath;
     unsigned char argTAG;        // s c f d m  ::  sbs id
     char chPart[8];     // -t value
-//    float PartOfMut;
     FILE * foutClust;
     FILE * foutMu_Clu;
     FILE * foutTrace;
     FILE * foutRndMu;
     FILE * foutRndCl;
     FILE * foutMini;
+    FILE * foutHStat;
     
-    PROGARGS() { argTAG='\0'; strcpy (chPart,"0.01");      //PartOfMut = 1;
+    PROGARGS() { argTAG='\0'; strcpy (chPart,"0.01");  foutHStat = NULL;
                 foutClust=NULL; foutMu_Clu=NULL; foutTrace=NULL; foutRndMu=NULL; foutRndCl=NULL; foutMini=NULL;};
     int procArg( int argc, char* argv[] );
     int openOutFiles ( );//const char *vcf_Fname );
     void closeOutFiles (  );
+    bool isArg_STAT() { return ( (argTAG & _ARG_STAT) > 0); };
     bool isArg_M() { return ( (argTAG & _ARG_M) > 0); };
     bool isArg_S() { return ( (argTAG & _ARG_S) > 0); };
     bool isArg_F() { return ( (argTAG & _ARG_F) > 0); };
@@ -51,7 +55,7 @@ struct PROGARGS {
 #define SRAND_VALUE 199
 #define RANDOM_CYCLES 1000
 
-void  xtrSamplName ( const char  *vcf_Fpath );
+void  xtrSamplName ( const char  *vcf_Fpath, string &sName );
 bool is_dir(const char  *path );
 bool is_file(const char  *path );
 int getNextMutFile( DIR *dir_MUT, FILE *Flist_MUT, char *F_path );
