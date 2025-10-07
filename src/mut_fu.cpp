@@ -2,9 +2,12 @@
 //#include <dirent.h>
 #include <string.h>
 #include <time.h>
+#include <zlib.h>
 
 #include "cmain.h"
 #include "xrosoma.h"
+
+#define VCF_REC_SIZE 8192
 
 extern PROGARGS ArgKit;
 extern vector < XROSOMA > vecDNK;
@@ -20,6 +23,86 @@ bool lesser_MUT ( const MUTANT &x1, const MUTANT &x2 )
     return x1.nucPos < x2.nucPos;
 }
 /////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+class VCF_IN_FILE {
+private:
+    //    std::ifstream plainFile;
+    FILE *vcfFile = NULL;
+    gzFile gzFilePtr = nullptr;
+    //    char buffer[4096];
+    std::string ErrTxt;
+    bool useGz = false;
+    bool opened = false;
+    
+    static bool isGzFile(const std::string& filename) {
+        return filename.size() >= 3 && filename.compare(filename.size() - 3, 3, ".gz") == 0;
+    }
+    
+public:
+    VCF_IN_FILE() = default;  // Default constructor
+    
+//--------- Open the file called later
+    void open(const std::string& filename) {
+        useGz = isGzFile(filename);
+        if (useGz) {
+            gzFilePtr = gzopen(filename.c_str(), "rb");
+            if (!gzFilePtr) {
+                ErrTxt = "Failed to open : " + filename;
+                throw std::runtime_error(ErrTxt);
+            }
+        } else {
+            //            plainFile.open(filename);
+            if ( ! (vcfFile = fopen(filename.c_str(), "rb")) ) {
+                //            if (!plainFile.is_open()) {
+                ErrTxt = "Failed to open : " + filename;
+                throw std::runtime_error(ErrTxt);
+            }
+        }
+        opened = true;
+    }
+//-------------------------
+    
+    bool getline(char * pBuff) {
+        if (!opened) {
+            throw std::runtime_error("VCF_file  not opened");
+        }
+        if (useGz) {
+            if (!gzFilePtr)
+                return false;
+            if ( ! gzgets(gzFilePtr, pBuff, VCF_REC_SIZE) )
+                return false;
+            return true;
+        } else {
+            if ( ! vcfFile )
+                return false;
+            if ( fgets_ShortRec(pBuff, VCF_REC_SIZE-1, vcfFile )==0 )
+                return false;
+            //            if (!std::getline(plainFile, line)) return false;
+            return true;
+        }
+    }
+    //-------------------------
+    
+    void close() {
+        if (gzFilePtr) {
+            gzclose(gzFilePtr);
+            gzFilePtr = nullptr;
+        }
+        if ( vcfFile ) {
+            fclose(vcfFile);
+        }
+        opened = false;
+        useGz = false;
+    }
+    
+    ~VCF_IN_FILE() {
+        close(); // Ensure files are closed on destruction
+    }
+};
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
 
 void  xtrSamplName ( const char  *vcf_Fpath, string &sName )    //const char  *vcf_Fname,
 {
@@ -61,16 +144,16 @@ int loadVCFMutation( const char *vcf_Fpath )
     int ind_Xro=-1;
     long startP = clock();
     
-    
-    
     printf("\nLoading mutations from '%s' ......\n", vcf_Fpath);
     fprintf(Ftrace, "\nLoading mutations from '%s' ......\n", vcf_Fpath);
-//    sprintf(cBuffer, "%s%s", ArgKit.MUTdir.c_str(), vcf_Fname );
-    FILE *f_Mutas=fopen( vcf_Fpath, "rb");    
-    if ( f_Mutas==NULL ) {
-        printf ("\nFailed to open VCF file: '%s'\n", vcf_Fpath );
-        return -1;
-    }
+
+    VCF_IN_FILE inputFile;
+    inputFile.open( vcf_Fpath );
+//    FILE *f_Mutas=fopen( vcf_Fpath, "rb");
+//    if ( f_Mutas==NULL ) {
+//        printf ("\nFailed to open VCF file: '%s'\n", vcf_Fpath );
+//        return -1;
+//    }
 
     xtrSamplName ( vcf_Fpath, ArgKit.MutSampl);
     clearSampl( );
@@ -78,11 +161,11 @@ int loadVCFMutation( const char *vcf_Fpath )
     int cntAllRec=0;
     int cntIgnor=0;
     int cntWarning=0;
-    char cBuffer[4096];
+    char cBuffer[VCF_REC_SIZE];
     
     while ( 1 ) {
         memset( (void *)cBuffer, '\0', sizeof(cBuffer));
-        if ( fgets_ShortRec(cBuffer, sizeof(cBuffer)-1, f_Mutas )==0 )
+        if ( ! inputFile.getline(cBuffer) )
             break;
         if ( cBuffer[0] == '#' ) {
             if ( (cBuffer[1] != '#') && strstr(cBuffer, "FORMAT" ) )
@@ -95,7 +178,7 @@ int loadVCFMutation( const char *vcf_Fpath )
         int retC = ( vcfFORMAT )   ? parsFORMATrec( cntAllRec,cBuffer, &ind_Xro, rdMUT )
                                    : parsINFOrec( cntAllRec, cBuffer, &ind_Xro, rdMUT );
         if ( retC < 0 ) {
-            fclose(f_Mutas);
+            inputFile.close();
             return -1;
         }
         if ( rdMUT.isDel() && rdMUT.isIns() )   {
@@ -129,7 +212,7 @@ int loadVCFMutation( const char *vcf_Fpath )
         }
 
     }
-    fclose(f_Mutas);
+    inputFile.close();
     
     int cntMut=0;
     for ( int nX=0; nX<vecDNK.size(); nX++ )    {
@@ -336,5 +419,6 @@ int parsINFOrec( int recNum, char *pRec, int *ind_Xro, MUTANT &rMUT )
     return 1;
 }
 ///////////////////////////////////////////////////////
+
 ///////////////////////////////////////////////////////
 
