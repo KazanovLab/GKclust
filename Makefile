@@ -1,5 +1,6 @@
 # Compiler
 CXX = g++
+LDLIBS += -lz
 
 # Source files
 SRC = $(wildcard src/*.cpp)
