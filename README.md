@@ -23,10 +23,11 @@ sudo make install
 GENAKITclust can generate output in several formats simultaneously.
 * The short output (-s option) includes only mutations that are part of the identified clusters.
 * The full output (-f option) contains all mutations from the input VCF files.
-* The list of cluster (-m option) contains only list of clusters for particular VCF file.
+* The list of cluster (-c option) contains only list of clusters for particular VCF file.
+* The brief statistics (-a option) for all processed VCFs.
 
 Other options include:
-* The input directory containing VCF file (-i) or the list of full paths to VCF files (-l) in a separate text file.
+* The input directory containing VCF file (-i) or the list of full paths to VCF files (-p) in a separate text file.
 * The reference genome location (-g).
 * The output directory (-o).
 * The p-value for determining the between-mutation distance threshold (-t, default: 0.01).
@@ -35,12 +36,12 @@ Examples:
 
 Short format output:
 ```
-gkclust -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+gkclust -s -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 Full format output:
 ```
-gkclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+gkclust -f -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 ```
 
 
