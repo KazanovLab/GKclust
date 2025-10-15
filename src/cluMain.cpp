@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
             
             clock_t endT = clock();
             duration = (double)(endT - begT) / CLOCKS_PER_SEC;
-            printf("%s: Muts %ld\t Clusts %ld\t overClusts %ld\t dT=%5.2f\n", vecDNK[nX].XroID.c_str(),
+            printf("%s: Mutations %ld\t Initial clusters %ld\t Merged clusters %ld\t dT=%5.2f\n", vecDNK[nX].XroID.c_str(),
                    vecDNK[nX].vMutAPO.size(), vecDNK[nX].vClust.size(),vecDNK[nX].vAggrC.size(),
                    duration );
         }
@@ -180,31 +180,66 @@ int getNextMutFile( DIR *dir_MUT, FILE *Flist_MUT, char *F_path )
 
 int PROGARGS:: procArg( int argc, char* argv[] )
 {
-
+/*
+Usage:
+      gkclust (-s | -f | -c | -a) (-i <input_directory> | -p <path_list>) -o <output_directory> -g <reference_genome> [-t <p_value>]
+    
+    At least one of (-s | -f | -c | -a) must be specified.
+    At least one of (-i | -p) must be specified.
+    
+Options:
+      -s                     Generate short output (only clustered mutations).
+      -f                     Generate full output (all mutations from the input VCF files).
+      -c                     Generate only a list of detected clusters.
+      -a                     Generate a file with statistics for all processed VCFs.
+      -i <input_directory>   Directory containing VCF files.
+      -p <path_list>         File containing a list of VCF file paths.
+          -b                     Consider only single-base substitutions (default).
+          -n                     Consider indels.
+          -o <output_directory>  Directory to save output files. (required)
+          -g <reference_genome>  Path to the reference genome. (required)
+          -t <p_value>           P-value for determining the between-mutation distance threshold (default: 0.01).
+            
+            Examples:
+              Short-format output:
+                gkclust -s -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+            
+              Full-format output:
+                gkclust -f -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
+*/
     if ( argc < 7 ) {
-        printf ("\nUsage: sbsclust (-s | -f | -sf) <input_directory> -o <output_directory> -g <reference_genome> [-t <p-value>]\n\n");
+        printf ("\nUsage:\n gkclust (-s | -f | -c | -a) (-i <input_directory> | -p <path_list>) -o <output_directory> -g <reference_genome> [-t <p_value>]\n\n");
+        printf ("At least one of (-s | -f | -c | -a) must be specified.\n");
+        printf ("At least one of (-i | -p) must be specified.\n\n");
         printf ("Options:\n");
-        printf ("  -s \tGenerate short output (only clustered mutations)\n");
-        printf ("  -f \tGenerate full output (all mutations from the input VCF files)\n");
-        printf ("  -sf\tGenerate both short and full outputs simultaneously\n");
-        printf ("  <input_directory>\tDirectory containing VCF files (required).\n");
+        printf ("  -s \tGenerate short output (only clustered mutations).\n");
+        printf ("  -f \tGenerate full output (all mutations from the input VCF files).\n");
+        printf ("  -c \tGenerate only a list of detected clusters.\n");
+        printf ("  -a \tGenerate a file with statistics for all processed VCFs.\n");
+        
+        printf ("  -i <input_directory>\tDirectory containing VCF files.\n");
+        printf ("  -p <path_list>      \tFile containing a list of VCF file paths.\n");
+        
+        printf ("  -b \tConsider only single-base substitutions (default).\n");
+        printf ("  -n \tConsider indels.\n");
+        
         printf ("  -o <output_directory>\tDirectory to save output files (required).\n");
         printf ("  -g <reference_genome>\tPath to the reference genome (required).\n");
-        printf ("  -t <p-value>\tP-value for determining the between-mutation distance threshold (default 0.01).\n\n");
+        printf ("  -t <p-value>         \tP-value for determining the between-mutation distance threshold (default 0.01).\n\n");
         printf ("Examples:\n");
         printf ("  Short format output:\n");
-        printf ("    sbsclust -s /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa\n\n");
+        printf ("    gkclust -s -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa\n\n");
         printf ("  Full format output:\n");
-        printf ("    sbsclust -f /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa\n\n");
-        printf ("  Both short and full output:\n");
-        printf ("    sbsclust -sf /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa\n\n");
-        printf ("Error: Incorrect usage. Please check the command syntax and try again.\n\n");
+        printf ("    gkclust -f -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa\n\n");
+
+//        printf ("Error: Incorrect usage. Please check the command syntax and try again.\n\n");
         
         return -1;
     }
     
     char what[16];
-    char parList[] = "-g@0 -o@1 -i@2 -l@3 -s@4 -f@5 -d@6 -m@7 -sbs@8 -id@9 -stat@10 -t@11 ";
+//  char parList[] = "-g@0 -o@1 -i@2 -l@3 -s@4 -f@5 -d@6 -m@7 -sbs@8 -id@9 -stat@10 -t@11 ";
+    char parList[] = "-g@0 -o@1 -i@2 -p@3 -s@4 -f@5 -d@6 -c@7 -b@8 -n@9 -a@10 -t@11 ";
     int parmN;
     
 //    char buffr[4096];
@@ -355,13 +390,13 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
         if ( isArg_SBS() )
             strFN +=  "_sbs";
         else
-            strFN += "_dl";
+            strFN += "_indel";     //"_dl";
 
 //  ------------------------
     if ( isArg_M() )    {
         if ( foutMini )
             fclose(foutMini);
-        strFpath = strFN + "_Mini.txt";
+        strFpath = strFN + "_clusterlist.txt";     //"_Mini.txt";
         if ( ! (foutMini=fopen(strFpath.c_str(), "w") ) ) {
             printf("InvOPENop '%s'\n", strFpath.c_str());
             goto BadExit;
@@ -371,7 +406,7 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
     if ( isArg_S() )    {
         if ( foutClust )
             fclose(foutClust);
-        strFpath = strFN + "_Clust.txt";
+        strFpath = strFN + "_short.txt";    //"_Clust.txt";
         if ( ! (foutClust=fopen(strFpath.c_str(), "w") ) ) {
             printf("InvOPENop '%s'\n", strFpath.c_str());
             goto BadExit;
@@ -381,7 +416,7 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
     if ( isArg_F() )    {
         if ( foutMu_Clu )
             fclose(foutMu_Clu);
-        strFpath = strFN + "_CluMut.txt";
+        strFpath = strFN + "_full.txt";   //"_CluMut.txt";
         if ( ! (foutMu_Clu=fopen(strFpath.c_str(), "w") ) ) {
             printf("InvOPENop '%s'\n", strFpath.c_str());
             goto BadExit;
@@ -421,8 +456,8 @@ int PROGARGS::openOutFiles ( )//const char *vcf_Fname )
             if ( isArg_SBS() )
                 HStatpath +=  "_sbs";
             else
-                HStatpath += "_dl";
-            HStatpath += "_Stat.txt";
+                HStatpath += "_indel";
+            HStatpath += "_briefstatt.txt";   // "_Stat.txt";
     }
 /*    if ( isArg_STAT() )    {
         if ( foutStat )

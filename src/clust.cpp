@@ -841,6 +841,13 @@ void printCluStat( )
             curMu = pCLU->iEndMu+1;
         }
     }
+    if ( cntMutGen == 0 )   {
+        fprintf(ArgKit.foutHStat, "%s\t%d\n", ArgKit.MutSampl.c_str(), cntMutGen );
+        fflush(ArgKit.foutHStat);                 // сброс буфера stdio
+        int fd = fileno(ArgKit.foutHStat);        // получить файловый дескриптор
+        fsync(fd);                               // заставить ОС записать на диск
+        return;
+    }
     sort(MutSpace.begin(), MutSpace.end());
     int L = (int)MutSpace.size();
     sizMin = MutSpace[0];

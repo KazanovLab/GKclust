@@ -117,8 +117,8 @@ int LoadHuGen( const char *fPath )
         pCurXro->maxXsize = pCurXro->Xsize;
     strcpy(pCurXro->Xbody, sGen.c_str() );
     cntXro++;
-    printf("%s\n=== Loaded %d chro\n", pCurXro->XroID.c_str(), cntXro );
-    fprintf(Ftrace,"=== Loaded %d chromos\n", cntXro);
+    printf("%s\n=== Loaded %d contigs\n", pCurXro->XroID.c_str(), cntXro );
+    fprintf(Ftrace,"=== Loaded %d contigs\n", cntXro);
     
     fclose (fHuGen );
     
