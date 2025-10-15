@@ -15,7 +15,6 @@ To compile GENAKITclust and install it system-wide navigate into the cloned dire
 ```
 cd GENAKITclust
 make
-sudo make install
 ```
 
 ## Quick start
