@@ -3,6 +3,8 @@
 #include <string.h>
 #include <time.h>
 #include <zlib.h>
+#include <stdexcept>   // runtime_error Linux
+#include <algorithm>   // lower_bound with comparator Linux
 
 #include "cmain.h"
 #include "xrosoma.h"
