@@ -9,7 +9,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <unistd.h>
-//#include <stdio.h>
+#include <cstring>      // for Linux: strcpy
+#include <algorithm>    // for Linux: sort
 
 #include "cmain.h"
 #include "xrosoma.h"
