@@ -516,9 +516,9 @@ int XROSOMA :: CLtest_Cross(pair<long,int> newClust, vector <pair <long,int> >::
 
 void printCluTrace(  )
 {
-    char cName_1[16], cName_2[16];
-    char cMutN_1[8], cMutN_2[8];
-    char cPorog[8], cDprio[8], cDnext[8];
+    char cName_1[64], cName_2[64];
+    char cMutN_1[64], cMutN_2[64];
+    char cPorog[64], cDprio[64], cDnext[64];
     int stat_1=0, stat_2=0;   // =1 if NOT Clust;  =2 if itis Clust & 1_st Mut ;  =3 Clust & next Mut
     CLUSTER *pCLU, *pAggr;
     XROSOMA *pXro;
@@ -557,20 +557,23 @@ void printCluTrace(  )
             
 //----- my_Clust
             if ( stat_1 != 1 )
-                sprintf(cName_1, "cID_%d", pCLU->cID );
+                snprintf(cName_1, sizeof(cName_1), "cID_%d", pCLU->cID);
+//                sprintf(cName_1, "cID_%d", pCLU->cID );
             if ( stat_1 == 2 )
-                sprintf(cMutN_1, "%d", (pCLU->iEndMu - pCLU->iBegMu) + 1 );
+                snprintf(cMutN_1, sizeof(cMutN_1), "%d", (pCLU->iEndMu - pCLU->iBegMu) + 1);
+//'                sprintf(cMutN_1, "%d", (pCLU->iEndMu - pCLU->iBegMu) + 1 );
             
             if ( stat_1 == 2  )  //
-                sprintf(cPorog, "%d", pXro->PorogMut);
+                snprintf(cPorog, sizeof(cPorog),"%d", pXro->PorogMut);
+//                sprintf(cPorog, "%d", pXro->PorogMut);
             else
                 strcpy(cPorog, " ");
             
             if ( stat_1 != 1 )  { //}|| statX != 1 ) {
-                sprintf(cDprio, "%d", (  (nMu==0)
+                snprintf(cDprio, sizeof(cDprio), "%d", (  (nMu==0)
                                         ? pXro->vMutAPO[nMu].nucPos
                                         : pXro->vMutAPO[nMu].nucPos - pXro->vMutAPO[nMu-1].nucPos) );
-                sprintf(cDnext, "%d", ( (nMu == pXro->vMutAPO.size()-1)
+                snprintf(cDnext, sizeof(cDnext), "%d", ( (nMu == pXro->vMutAPO.size()-1)
                                         ? (int)pXro->Xsize - pXro->vMutAPO[nMu].nucPos
                                         : pXro->vMutAPO[nMu+1].nucPos - pXro->vMutAPO[nMu].nucPos) );
             } else {
@@ -582,20 +585,20 @@ void printCluTrace(  )
             
 //----- compound_Clust
             if ( stat_2 != 1 )
-                sprintf(cName_2, "cID_%d", pAggr->cID );
+                snprintf(cName_2, sizeof(cName_2), "cID_%d", pAggr->cID );
             if ( stat_2 == 2 )
-                sprintf(cMutN_2, "%d", (pAggr->iEndMu - pAggr->iBegMu) + 1 );
+                snprintf(cMutN_2, sizeof(cMutN_2), "%d", (pAggr->iEndMu - pAggr->iBegMu) + 1 );
             
             if ( stat_2 == 2 )
-                sprintf(cPorog, "%d", pXro->PorogClust);
+                snprintf(cPorog, sizeof(cPorog), "%d", pXro->PorogClust);
             else
                 strcpy(cPorog, " ");
             
             if ( stat_2 != 1 ) {
-                sprintf(cDprio, "%d", (  (nMu==0)
+                snprintf(cDprio, sizeof(cDprio), "%d", (  (nMu==0)
                                         ? pXro->vMutAPO[nMu].nucPos
                                         : pXro->vMutAPO[nMu].nucPos - pXro->vMutAPO[nMu-1].nucPos) );
-                sprintf(cDnext, "%d", ( (nMu == pXro->vMutAPO.size()-1)
+                snprintf(cDnext, sizeof(cDnext), "%d", ( (nMu == pXro->vMutAPO.size()-1)
                                         ? (int)pXro->Xsize - pXro->vMutAPO[nMu].nucPos
                                         : pXro->vMutAPO[nMu+1].nucPos - pXro->vMutAPO[nMu].nucPos) );
             } else {
