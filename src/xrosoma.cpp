@@ -27,6 +27,7 @@ void xtrctXID( char *pBuff)
     char *pX = xID ;
     char *pB = pBuff ;
     
+    memset(xID, '\0', XRO_ID_SIZE);
     pB++;   // >
     while ( *pB && *pB==' ') pB++;
     strncpy(xID, pB, XRO_ID_SIZE-1);
@@ -193,6 +194,12 @@ int  findXroByID( char *xID, int say )
     int indX;
     int stat;
     char my_xID[XRO_ID_SIZE];
+    
+    if ( vecDNK.empty() )   {
+        if ( say )
+            printf("ERR: XroID='%s' NOT FOUND\n", xID);
+        return -1;
+    }
     
     if  ( strstr(xID,"chr")==xID )
         stat = ( vecDNK[0].chrIDmode ) ? 1 : 2;
