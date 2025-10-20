@@ -93,14 +93,15 @@ public:
         }
         if ( vcfFile ) {
             fclose(vcfFile);
+            vcfFile = nullptr;
         }
         opened = false;
         useGz = false;
     }
     
-    ~VCF_IN_FILE() {
-        close(); // Ensure files are closed on destruction
-    }
+//    ~VCF_IN_FILE() {
+//        close(); // Ensure files are closed on destruction
+//    }
 };
 
 ////////////////////////////////////////////////////////////////////////
