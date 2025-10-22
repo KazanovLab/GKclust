@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
+
 #include "cmain.h"
 #include "xrosoma.h"
 
@@ -124,7 +125,6 @@ int main(int argc, char* argv[])
     
     ArgKit.closeOutFiles (  );
     
-    fclose (Ftrace);
     if ( errCnt > 0 )
         printf("\nDetecned %d ERRORS. Look  file 'mutrace.txt'\n", errCnt);
     
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
     duration = (double)(finish - start) / CLOCKS_PER_SEC;
     printf("\nTotal execution time: %5.2f seconds.\n", duration);
     fprintf(Ftrace,"\nTotal execution time: %5.2f seconds.\n", duration);
-
+    fclose (Ftrace);
     
     return 0;
 
@@ -324,7 +324,8 @@ Options:
                 argTAG |= _ARG_STAT;
                 break;
             case 11:
-                strncpy(chPart, argv[nP+1], sizeof(chPart)-1);
+//                strncpy(chPart, argv[nP+1], sizeof(chPart)-1);
+                snprintf(chPart, sizeof(chPart), "%s", argv[nP+1]);
                 float fP;
                 sscanf(chPart, "%f", &fP);
                 if ( fP <= 0.001 || fP >= 0.999 )   {

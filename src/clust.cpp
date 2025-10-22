@@ -150,7 +150,7 @@ void XROSOMA:: addDublRndMut( )
     
     while ( vRndMut.size() < vMutAPO.size() )   {
         Rnd_pos = ( (double)rand() / (double)RAND_MAX ) * Xsize;
-        if ( *(Xbody+Rnd_pos)=='N' )
+        if ( Rnd_pos==Xsize || *(Xbody+Rnd_pos)=='N' )
             continue;
         if ( vRndMut.back() < Rnd_pos )   {      // ? <=  | < ?
             vRndMut.push_back( Rnd_pos );
@@ -188,7 +188,7 @@ int XROSOMA:: calcMutPorog(  )
         vRndMut.clear();
         while (nM < Msiz) {
             Rnd_pos = ( (double)rand() / (double)RAND_MAX ) * Xsize;
-            if ( *(Xbody+Rnd_pos)=='N' )
+            if ( Rnd_pos==Xsize || *(Xbody+Rnd_pos)=='N' )
                 continue;
 
             vRndMut.push_back(Rnd_pos);
