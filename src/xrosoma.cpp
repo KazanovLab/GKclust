@@ -27,13 +27,13 @@ void xtrctXID( char *pBuff)
     char *pX = xID ;
     char *pB = pBuff ;
     
-//    memset(xID, '\0', XRO_ID_SIZE);
     pB++;   // >
     while ( *pB && *pB==' ') pB++;
-    snprintf(xID, XRO_ID_SIZE, "%s", xID); //strncpy(xID, pB, XRO_ID_SIZE-1);
+//    memset(xID, '\0', XRO_ID_SIZE);
+    snprintf(xID, XRO_ID_SIZE, "%s", pB); //strncpy(xID, pB, XRO_ID_SIZE-1);
     
-    while ( *pX && *pX > ' ') pX++;
-    *pX = '\0';
+//    while ( *pX && *pX > ' ') pX++;
+//    *pX = '\0';
     strcpy(pBuff,  xID);
     
     return;
