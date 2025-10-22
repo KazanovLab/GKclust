@@ -27,10 +27,10 @@ void xtrctXID( char *pBuff)
     char *pX = xID ;
     char *pB = pBuff ;
     
-    memset(xID, '\0', XRO_ID_SIZE);
+//    memset(xID, '\0', XRO_ID_SIZE);
     pB++;   // >
     while ( *pB && *pB==' ') pB++;
-    strncpy(xID, pB, XRO_ID_SIZE-1);
+    snprintf(xID, XRO_ID_SIZE, "%s", xID); //strncpy(xID, pB, XRO_ID_SIZE-1);
     
     while ( *pX && *pX > ' ') pX++;
     *pX = '\0';
@@ -210,8 +210,8 @@ int  findXroByID( char *xID, int say )
 // 2=(chrID) : (   ID)
 // 3=(   ID) : (chrID)
 // 1=(   ID) : (   ID)
-    
-    strncpy(my_xID, xID, XRO_ID_SIZE-1);
+
+    snprintf(my_xID, XRO_ID_SIZE, "%s", xID);   //strncpy(my_xID, xID, XRO_ID_SIZE-1);
     switch (stat) {
             
         case 2:         // (chrID) : (   ID)
