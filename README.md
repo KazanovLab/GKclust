@@ -1,25 +1,25 @@
-<img src="docs/genaclust_logo.jpg" alt="logo" title="GENAKITclust logo" height="400" align="right" />
+<img src="docs/genaclust_logo.jpg" alt="logo" title="GKclust logo" height="400" align="right" />
 
-# GENAKITclust
+# GKclust
 
-GENAKITclust is a computational tool designed to detect clusters of mutations in complete genomes. 
+GKclust is a computational tool designed to detect clusters of mutations in complete genomes. 
 
 ## Installation
 
-To install GENAKITclust from GitHub navigate to a directory where you want to install the program and clone the repository:
+To install GKclust from GitHub navigate to a directory where you want to install the program and clone the repository:
 ```
-git clone https://github.com/KazanovLab/GENAKITclust
+git clone https://github.com/KazanovLab/GKclust
 ```
 
-To compile GENAKITclust and install it system-wide navigate into the cloned directory and run:
+To compile GKclust and install it system-wide navigate into the cloned directory and run:
 ```
-cd GENAKITclust
+cd GKclust
 make
 ```
 
 ## Quick start
 
-GENAKITclust can generate output in several formats simultaneously.
+GKclust can generate output in several formats simultaneously.
 * The short output (-s option) includes only mutations that are part of the identified clusters.
 * The full output (-f option) contains all mutations from the input VCF files.
 * The list of cluster (-c option) contains only list of clusters for particular VCF file.
@@ -48,7 +48,7 @@ gkclust -f -i /inputdir/ -o /outputdir/ -g /refgenome/hg19.fa
 Please use the [GitHub issue tracker](https://github.com/KazanovLab/GENAKITclust/issues) to report bugs or suggest features.
 
 ## Citing
-Ponomarev GV, Kurtoğlu B, Kazanov MD. "GENAKITclust: A Bioinformatics Tool for Detecting Spatially Clustered Mutations in Complete Genomes". *to be submitted*
+Ponomarev GV, Kurtoğlu B, Kazanov MD. "GKclust: A Bioinformatics Tool for Detecting Spatially Clustered Mutations in Complete Genomes". *to be submitted*
 
 ## Funding
 This study was supported by the Scientific and Technological Research Council of Turkey (TUBITAK) under Grant Number 123E476. The authors thank TUBITAK for their support. 
