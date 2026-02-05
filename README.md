@@ -30,6 +30,9 @@ Other options include:
 * The reference genome location (-g).
 * The output directory (-o).
 * The p-value for determining the between-mutation distance threshold (-t, default: 0.01).
+* The analysis can be run only for single-nucleotide substitutions (SBS) using option -b (default), or only for insertions and deletions (indels) using option -n.
+To analyze both SBS and indels, both options (-b and -n) must be specified.
+
 
 Examples:
 
