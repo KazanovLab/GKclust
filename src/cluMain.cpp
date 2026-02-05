@@ -245,7 +245,7 @@ Options:
 //    char buffr[4096];
     
     int nP=1;
-    while ( nP+1 < argc ) {
+    while ( nP < argc ) {
         snprintf(what, sizeof(what)-4, "%s@", argv[nP] );
         char *pL = strstr(parList, what);
         if ( ! pL ) {
